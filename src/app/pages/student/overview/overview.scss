@@ -1,0 +1,276 @@
+.overview-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f5;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  line-height: 1;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .material-icons {
+    font-size: 22px;
+  }
+}
+
+.overview-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 16px;
+  align-items: start;
+}
+
+.overview-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  border: 1px solid #f0f0f5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 16px;
+}
+
+.attendance-log {
+  padding: 0;
+}
+
+.attendance-log .card-title {
+  padding: 20px 20px 0;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 0.875rem;
+
+  th, td {
+    padding: 12px 20px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f5;
+    white-space: nowrap;
+  }
+
+  th {
+    color: #6b7280;
+    font-weight: 500;
+    background: #fafafa;
+  }
+}
+
+.class-badge {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.present {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &.late {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &.absent {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+}
+
+.upcoming-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mini-calendar {
+  padding: 4px 0 0;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cal-month-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.cal-nav {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.cal-day-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #9ca3af;
+  padding: 4px 0;
+}
+
+.cal-day {
+  font-size: 0.8rem;
+  padding: 6px 0;
+  border-radius: 6px;
+  color: #374151;
+
+  &.today {
+    background: #4f46e5;
+    color: #fff;
+    font-weight: 700;
+    border-radius: 50%;
+  }
+
+  &.empty {
+    visibility: hidden;
+  }
+}
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .overview-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+:host-context(body.dark-mode) {
+  .stat-card,
+  .card {
+    background: #111827;
+    border-color: #1f2937;
+    box-shadow: none;
+  }
+
+  .stat-label,
+  .attendance-table th,
+  .cal-day-name {
+    color: #94a3b8;
+  }
+
+  .stat-value,
+  .card-title,
+  .cal-month-label,
+  .upcoming-list,
+  .cal-day {
+    color: #e2e8f0;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    border-bottom-color: #1f2937;
+  }
+
+  .attendance-table th {
+    background: #0f172a;
+  }
+
+  .class-badge {
+    background: #1f2937;
+    color: #cbd5e1;
+  }
+
+  .cal-nav {
+    color: #94a3b8;
+
+    &:hover {
+      background: #1f2937;
+      color: #e2e8f0;
+    }
+  }
+}

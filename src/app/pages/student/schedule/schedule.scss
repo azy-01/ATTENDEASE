@@ -1,0 +1,167 @@
+.schedule-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.top-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.top-actions button {
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: #4f46e5;
+  cursor: pointer;
+}
+
+.day-group {
+  background: #fff;
+  border: 1px solid #edf0f5;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.day-group h3 {
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  letter-spacing: 0.7px;
+  color: #6b7280;
+}
+
+.class-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  background: #f7f8fb;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.class-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.class-left .material-icons {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.time {
+  font-size: 0.7rem;
+  color: #6b7280;
+  min-width: 72px;
+}
+
+.class-left strong {
+  font-size: 0.78rem;
+  color: #111827;
+}
+
+.class-left p {
+  margin: 2px 0 0;
+  font-size: 0.67rem;
+  color: #6b7280;
+}
+
+.class-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: #374151;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #1d4ed8;
+  border-radius: 8px;
+  background: #eff6ff;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d4ed8;
+}
+
+.icon-btn .material-icons {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.icon-btn.delete {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.icon-btn:hover {
+  background: #dbeafe;
+}
+
+.icon-btn.delete:hover {
+  background: #fee2e2;
+}
+
+@media (max-width: 768px) {
+  .class-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+:host-context(body.dark-mode) {
+  .day-group {
+    background: #111827;
+    border-color: #1f2937;
+  }
+
+  .day-group h3,
+  .time,
+  .class-left p,
+  .class-right,
+  .class-left .material-icons,
+  .class-right .material-icons {
+    color: #94a3b8;
+  }
+
+  .class-row {
+    background: #0f172a;
+  }
+
+  .class-left strong {
+    color: #e2e8f0;
+  }
+
+  .icon-btn {
+    border-color: #60a5fa;
+    background: #0b1a33;
+    color: #60a5fa;
+  }
+
+  .icon-btn.delete {
+    border-color: #f87171;
+    background: #2f1215;
+    color: #f87171;
+  }
+
+  .icon-btn:hover {
+    background: #13294d;
+  }
+
+  .icon-btn.delete:hover {
+    background: #3f1519;
+  }
+}

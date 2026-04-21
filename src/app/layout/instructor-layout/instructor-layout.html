@@ -1,0 +1,19 @@
+<div class="instructor-layout">
+  <app-instructor-sidebar
+    [isOpen]="sidebarOpen"
+    (closeSidebar)="sidebarOpen = false"
+  ></app-instructor-sidebar>
+
+  <div class="instructor-main">
+    <app-instructor-header
+      [pageTitle]="pageTitle"
+      [userName]="userName"
+      [sidebarOpen]="sidebarOpen"
+      (menuToggle)="sidebarOpen = !sidebarOpen"
+    ></app-instructor-header>
+
+    <main class="instructor-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,42 @@
+<div class="my-attendance-page">
+  <div class="card">
+    <div class="filters-row">
+      <select [(ngModel)]="selectedSubject">
+        <option value="">All Subjects</option>
+      </select>
+      <select [(ngModel)]="selectedStatus">
+        <option value="">All Status</option>
+      </select>
+      <input type="date" [(ngModel)]="fromDate" />
+      <input type="date" [(ngModel)]="toDate" />
+    </div>
+
+    <div class="table-responsive">
+      <table class="attendance-table">
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Section</th>
+            <th>Date</th>
+            <th>Time In</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody *ngIf="hasRecords; else emptyState">
+          <tr *ngFor="let record of records">
+            <td>{{ record.subject }}</td>
+            <td><span class="class-badge">{{ record.section }}</span></td>
+            <td>{{ record.date }}</td>
+            <td>{{ record.timeIn }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="record.status.toLowerCase()">{{ record.status }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #emptyState>
+        <div class="empty-state">No records found</div>
+      </ng-template>
+    </div>
+  </div>
+</div>

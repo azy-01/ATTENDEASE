@@ -1,0 +1,57 @@
+<div class="attendance-page">
+
+  <!-- Start New Session Card -->
+  <div class="card">
+    <h2 class="card-title">
+      <span class="material-icons">play_arrow</span>
+      Start New Session
+    </h2>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Class / Section</label>
+        <select [(ngModel)]="selectedSection">
+          <option value="">Select section</option>
+          <option *ngFor="let s of sections" [value]="s">{{ s }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Subject</label>
+        <select [(ngModel)]="selectedSubject">
+          <option value="">Select subject</option>
+          <option *ngFor="let s of subjects" [value]="s">{{ s }}</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-primary" (click)="startSession()" [disabled]="!selectedSection || !selectedSubject || isStarting">
+      <span class="material-icons">play_arrow</span>
+      <span *ngIf="!isStarting">Start Session</span>
+      <span *ngIf="isStarting" class="loader"></span>
+    </button>
+  </div>
+
+  <!-- Recent Sessions Card -->
+  <div class="card">
+    <h2 class="card-title-plain">Recent Sessions</h2>
+
+    <div class="empty-state" *ngIf="recentSessions.length === 0">
+      <span class="material-icons">event_busy</span>
+      <p>No recent sessions yet.</p>
+    </div>
+
+    <div class="session-list" *ngIf="recentSessions.length > 0">
+      <div class="session-item" *ngFor="let session of recentSessions">
+        <div class="session-info">
+          <p class="session-subject">{{ session.subject }}</p>
+          <p class="session-meta">{{ session.section }} • {{ session.date }}</p>
+        </div>
+        <span class="badge" [ngClass]="'badge-' + session.status">
+          {{ session.status }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+</div>

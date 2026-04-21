@@ -1,0 +1,21 @@
+<header class="instructor-header">
+  <div class="header-left">
+    <button class="menu-toggle" (click)="toggleSidebar()" aria-label="Toggle sidebar">
+      <span class="material-icons">{{ sidebarOpen ? 'close' : 'menu' }}</span>
+    </button>
+    <div class="header-title-group">
+      <h1 class="header-title">{{ pageTitle }}</h1>
+      <p class="header-subtitle">Welcome back, {{ userName }}</p>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <button class="icon-btn" aria-label="Notifications">
+      <span class="material-icons">notifications</span>
+      <span class="notif-dot"></span>
+    </button>
+    <button class="avatar-btn" aria-label="Account">
+      {{ userInitial }}
+    </button>
+  </div>
+</header>

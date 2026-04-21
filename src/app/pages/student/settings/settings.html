@@ -1,0 +1,25 @@
+<div class="settings-page">
+  <section class="card">
+    <h3>Account</h3>
+    <div class="profile-head">
+      <div class="avatar">N</div>
+      <div>
+        <strong>{{ fullName }}</strong>
+        <p>{{ email }}</p>
+      </div>
+    </div>
+    <label>Full Name</label>
+    <input [value]="fullName" readonly />
+    <label>Email</label>
+    <input [value]="email" readonly />
+    <div class="actions">
+      <button type="button" class="save-btn" (click)="saveChanges()">Save Changes</button>
+      <p class="save-message" *ngIf="saveMessage">{{ saveMessage }}</p>
+    </div>
+  </section>
+
+  <button type="button" class="logout-btn" (click)="logout()">
+    <span class="material-icons">logout</span>
+    Logout
+  </button>
+</div>

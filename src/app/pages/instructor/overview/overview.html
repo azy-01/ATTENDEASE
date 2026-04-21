@@ -1,0 +1,120 @@
+<div class="overview-page">
+
+  <!-- Top action bar -->
+  <div class="overview-actions">
+    <button class="btn-outline" (click)="goToReports()">
+      <span class="material-icons">description</span>
+      View Reports
+    </button>
+    <button class="btn-primary" (click)="goToAttendance()">
+      <span class="material-icons">play_arrow</span>
+      Start Session
+    </button>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-grid">
+    <div class="stat-card" *ngFor="let stat of stats">
+      <div class="stat-info">
+        <p class="stat-label">{{ stat.label }}</p>
+        <p class="stat-value">{{ stat.value }}</p>
+      </div>
+      <div class="stat-icon" [style.background]="stat.color + '18'">
+        <span class="material-icons" [style.color]="stat.color">{{ stat.icon }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="overview-body">
+
+    <!-- Attendance Log -->
+    <div class="card attendance-log">
+      <h2 class="card-title">Recent Attendance Logs</h2>
+      
+      <div class="table-responsive">
+        <table class="attendance-table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Subject</th>
+              <th>Class</th>
+              <th>Time-in</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody *ngIf="attendanceLogs.length > 0">
+            <tr *ngFor="let log of attendanceLogs">
+              <td>
+                <div class="student-cell">
+                  <div class="avatar">{{ log.student.charAt(0) }}</div>
+                  <span class="student-name">{{ log.student }}</span>
+                </div>
+              </td>
+              <td>{{ log.subject }}</td>
+              <td><span class="class-badge">{{ log.class }}</span></td>
+              <td>{{ log.timeIn }}</td>
+              <td>
+                <span class="status-badge" [ngClass]="log.status.toLowerCase()">{{ log.status }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="empty-state" *ngIf="attendanceLogs.length === 0">
+          <span class="material-icons empty-icon">how_to_reg</span>
+          <p>No attendance records for today yet.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="overview-right">
+
+      <!-- Active Sessions -->
+      <div class="card">
+        <h2 class="card-title">Active Sessions</h2>
+        <div class="empty-state small" *ngIf="activeSessions.length === 0">
+          <p>No active sessions</p>
+        </div>
+      </div>
+
+      <!-- Today's Rate -->
+      <div class="card">
+        <h2 class="card-title">Today's Rate</h2>
+        <div class="rate-display">
+          <span class="rate-value">{{ attendanceRate }}%</span>
+          <span class="rate-label">Attendance Rate</span>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div class="card">
+        <h2 class="card-title">Calendar</h2>
+        <div class="mini-calendar">
+          <div class="cal-header">
+            <button class="cal-nav" (click)="prevMonth()">
+              <span class="material-icons">chevron_left</span>
+            </button>
+            <span class="cal-month-label">{{ currentMonthLabel }}</span>
+            <button class="cal-nav" (click)="nextMonth()">
+              <span class="material-icons">chevron_right</span>
+            </button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-day-name" *ngFor="let d of dayNames">{{ d }}</div>
+            <div
+              *ngFor="let cell of calendarCells"
+              class="cal-day"
+              [class.today]="cell.isToday"
+              [class.empty]="!cell.day"
+            >
+              {{ cell.day || '' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

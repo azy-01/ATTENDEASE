@@ -1,0 +1,18 @@
+<div class="qr-page">
+  <section class="qr-card">
+    <h3>Attendance QR Code</h3>
+
+    <div class="avatar">N</div>
+    <strong>{{ fullName }}</strong>
+
+    <div class="qr-wrap">
+      <img [src]="qrImage" alt="Attendance QR Code" />
+    </div>
+
+    <p>Show this QR code to your instructor during attendance sessions.</p>
+    <button type="button">
+      <span class="material-icons">download</span>
+      Download QR Code
+    </button>
+  </section>
+</div>

@@ -1,0 +1,461 @@
+<!-- TOAST -->
+<div class="toast" *ngIf="toast"
+  [style.background]="toast.color"
+  [style.box-shadow]="'0 8px 24px ' + toast.shadow">
+  {{ toast.message }}
+</div>
+
+<!-- ══ NAVBAR ══ -->
+<nav [class.scrolled]="isScrolled">
+  <a class="nav-brand" (click)="scrollTo('home')">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+    </div>
+    <span class="nav-brand-text">AttendEase</span>
+  </a>
+  <ul class="nav-links">
+    <li><a (click)="scrollTo('home')">Home</a></li>
+    <li><a (click)="scrollTo('features')">Features</a></li>
+    <li><a (click)="scrollTo('about')">About</a></li>
+    <li><a (click)="scrollTo('faqs')">FAQs</a></li>
+    <li><a (click)="scrollTo('contact')">Contact</a></li>
+  </ul>
+  <div class="nav-actions">
+    <button class="btn-theme" (click)="toggleDarkMode()">
+      {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
+    </button>
+    <button class="btn-ghost" (click)="openLogin()">Log In</button>
+    <button class="btn-primary" (click)="openSignup()">Get Started</button>
+  </div>
+  <button class="burger" [class.open]="isMobileMenuOpen" (click)="toggleMobileMenu()">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" [class.show]="isMobileMenuOpen">
+  <a (click)="scrollTo('home')">Home</a>
+  <a (click)="scrollTo('features')">Features</a>
+  <a (click)="scrollTo('about')">About</a>
+  <a (click)="scrollTo('faqs')">FAQs</a>
+  <a (click)="scrollTo('contact')">Contact</a>
+  <div class="mobile-menu-actions">
+    <button class="btn-outline-lg" (click)="toggleDarkMode()">
+      {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
+    </button>
+    <button class="btn-outline-lg" (click)="openLogin()">Log In</button>
+    <button class="btn-primary-lg" (click)="openSignup()">Get Started</button>
+  </div>
+</div>
+
+<!-- ══ HERO ══ -->
+<section id="home" class="hero-section">
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-badge"><span class="dot"></span>Smart Attendance Tracking</div>
+      <h1 class="hero-title">Attendance Made <span>Effortless</span></h1>
+      <p class="hero-desc">Streamline your classroom attendance with QR code scanning, real-time tracking, and powerful analytics. Built for modern educators and students.</p>
+      <div class="hero-cta">
+        <button class="btn-primary-lg" (click)="openSignup()">
+          Get Started Free
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <button class="btn-outline-lg" (click)="openLogin()">Log In</button>
+      </div>
+      <div class="hero-trust">
+        <div class="trust-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Free to use</div>
+        <div class="trust-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>QR Code Scanning</div>
+        <div class="trust-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Real-time Reports</div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="visual-wrapper">
+        <div class="session-chip">
+          <div class="session-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div><div class="session-title">Session Active</div><div class="session-sub">BSIT-3A • 32 scanned</div></div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card-header">
+            <div>
+              <div class="hero-card-title">Today's Overview</div>
+              <div class="hero-rate">{{ attendanceRate }}%</div>
+              <div class="hero-rate-label">Attendance Rate</div>
+            </div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-box"><div class="val present-val">{{ presentCount }}</div><div class="lbl">Present</div></div>
+            <div class="stat-box"><div class="val absent-val">{{ absentCount }}</div><div class="lbl">Absent</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FEATURES ══ -->
+<section id="features" class="features-section">
+  <div class="section-inner">
+    <div class="section-header text-center reveal">
+      <div class="section-label">Features</div>
+      <h2 class="section-title">Everything You Need to Track Attendance</h2>
+      <p class="section-desc">Powerful tools designed to make attendance management simple and efficient.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal" *ngFor="let f of features">
+        <div class="feature-icon">
+          <ng-container [ngSwitch]="f.icon">
+            <svg *ngSwitchCase="'qr'"      viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <svg *ngSwitchCase="'clock'"   viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <svg *ngSwitchCase="'users'"   viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <svg *ngSwitchCase="'chart'"   viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <svg *ngSwitchCase="'monitor'" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <svg *ngSwitchCase="'bell'"    viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </ng-container>
+        </div>
+        <div class="feature-title">{{ f.title }}</div>
+        <div class="feature-desc">{{ f.description }}</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ABOUT ══ -->
+<section id="about" class="about-section">
+  <div class="section-inner">
+    <div class="section-header text-center reveal">
+      <div class="section-label">About AttendEase</div>
+      <h2 class="section-title">Modern Attendance for Modern Classrooms</h2>
+      <p class="section-desc">AttendEase replaces manual roll calls with a smart digital system. Instructors can start sessions, track students via QR codes, and generate reports — all from one dashboard.</p>
+    </div>
+    <div class="about-grid">
+      <div class="about-card reveal" *ngFor="let card of aboutCards">
+        <div class="about-icon">
+          <ng-container [ngSwitch]="card.icon">
+            <svg *ngSwitchCase="'target'" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            <svg *ngSwitchCase="'people'" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <svg *ngSwitchCase="'shield'" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </ng-container>
+        </div>
+        <div class="about-title">{{ card.title }}</div>
+        <div class="about-desc">{{ card.description }}</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FAQS ══ -->
+<section id="faqs" class="faqs-section">
+  <div class="section-inner">
+    <div class="section-header text-center reveal">
+      <div class="section-label">FAQs</div>
+      <h2 class="section-title">Frequently Asked Questions</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item reveal" [class.open]="faq.isOpen" *ngFor="let faq of faqs; let i = index">
+        <button class="faq-q" (click)="toggleFaq(i)">
+          {{ faq.question }}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="faq-a">{{ faq.answer }}</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CONTACT ══ -->
+<section id="contact" class="contact-section">
+  <div class="section-inner">
+    <div class="contact-grid">
+      <div class="contact-info reveal">
+        <div class="section-label">Contact</div>
+        <h2 class="contact-title">Get in Touch</h2>
+        <p class="contact-desc">Have questions or need help getting started? Reach out to our team and we'll get back to you within 24 hours.</p>
+        <div class="contact-info-item"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>support&#64;attendease.com</div>
+        <div class="contact-info-item"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+63 912 345 6789</div>
+        <div class="contact-info-item"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Manila, Philippines</div>
+      </div>
+      <div class="contact-form reveal">
+        <div class="form-row">
+          <div class="form-group"><label>First Name</label><input type="text" [(ngModel)]="contactForm.firstName" placeholder="Juan"/></div>
+          <div class="form-group"><label>Last Name</label><input type="text" [(ngModel)]="contactForm.lastName" placeholder="Dela Cruz"/></div>
+        </div>
+        <div class="form-group"><label>Email Address</label><input type="email" [(ngModel)]="contactForm.email" placeholder="juan@school.edu.ph"/></div>
+        <div class="form-group">
+          <label>Role</label>
+          <select [(ngModel)]="contactForm.role">
+            <option value="">Select your role</option>
+            <option *ngFor="let r of roleOptions" [value]="r">{{ r }}</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Message</label><textarea [(ngModel)]="contactForm.message" rows="4" placeholder="Tell us how we can help..."></textarea></div>
+        <button class="btn-submit" (click)="onSubmitContact()">Send Message</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand-col">
+        <div class="footer-brand">
+          <div class="nav-logo"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg></div>
+          <span class="footer-brand-text">AttendEase</span>
+        </div>
+        <p class="footer-tagline">A modern attendance monitoring system designed to simplify tracking for educational institutions.</p>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Quick Links</div>
+        <ul class="footer-links">
+          <li><a (click)="scrollTo('home')">Home</a></li>
+          <li><a (click)="scrollTo('features')">Features</a></li>
+          <li><a (click)="scrollTo('about')">About</a></li>
+          <li><a (click)="scrollTo('faqs')">FAQs</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">System</div>
+        <ul class="footer-links">
+          <li><a href="#">Instructor Dashboard</a></li>
+          <li><a href="#">Student Dashboard</a></li>
+          <li><a href="#">Attendance Reports</a></li>
+          <li><a href="#">QR Code Scanning</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Contact</div>
+        <div class="footer-contact-item"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>support&#64;attendease.com</div>
+        <div class="footer-contact-item"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+63 912 345 6789</div>
+        <div class="footer-contact-item"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Manila, Philippines</div>
+      </div>
+    </div>
+    <hr class="footer-divider"/>
+    <div class="footer-bottom"><p class="footer-copy">© 2026 AttendEase. All rights reserved.</p></div>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════
+     AUTH MODAL
+     ══════════════════════════════════════════════ -->
+<div class="modal-overlay" *ngIf="showModal" (click)="onOverlayClick($event)">
+  <div class="modal-box" [class.wide]="authView === 'signup-choose'">
+
+    <!-- Close button -->
+    <button class="modal-close" (click)="closeModal()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <!-- ── LOGO ── -->
+    <div class="modal-brand">
+      <div class="nav-logo"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg></div>
+      <span class="modal-brand-text">AttendEase</span>
+    </div>
+
+    <!-- ════════════════════════════
+         VIEW: LOGIN
+         ════════════════════════════ -->
+    <ng-container *ngIf="authView === 'login'">
+      <h2 class="modal-title">Welcome back</h2>
+      <p class="modal-sub">Log in to your account to continue.</p>
+      <p class="modal-sub">
+        Demo accounts: Instructor (instructor@gmail.com / Instructor123) or Student (student@email.com or student@gmail.com / Student123)
+      </p>
+
+      <!-- Role selector -->
+      <div class="role-tabs">
+        <button [class.active]="loginForm.role === 'instructor'" (click)="loginForm.role = 'instructor'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Instructor
+        </button>
+        <button [class.active]="loginForm.role === 'student'" (click)="loginForm.role = 'student'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>
+          Student
+        </button>
+      </div>
+      <div class="field-error" *ngIf="formErrors['role']">{{ formErrors['role'] }}</div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" [(ngModel)]="loginForm.email" placeholder="you@email.com" [class.error]="formErrors['email']"/>
+        <div class="field-error" *ngIf="formErrors['email']">{{ formErrors['email'] }}</div>
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-eye">
+          <input [type]="showLoginPassword ? 'text' : 'password'" [(ngModel)]="loginForm.password" placeholder="••••••••" [class.error]="formErrors['password']"/>
+          <button type="button" class="eye-btn" (click)="showLoginPassword = !showLoginPassword">
+            <svg *ngIf="!showLoginPassword" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg *ngIf="showLoginPassword"  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+        <div class="field-error" *ngIf="formErrors['password']">{{ formErrors['password'] }}</div>
+      </div>
+
+      <button class="btn-modal-submit" (click)="onLogin()" [disabled]="isLoading">
+        <span *ngIf="!isLoading">Log In</span>
+        <span *ngIf="isLoading" class="loader"></span>
+      </button>
+
+      <div class="field-error" *ngIf="formErrors['auth']">{{ formErrors['auth'] }}</div>
+
+      <p class="modal-switch">Don't have an account? <a (click)="setView('signup-choose')">Sign up</a></p>
+    </ng-container>
+
+    <!-- ════════════════════════════
+         VIEW: CHOOSE ROLE
+         ════════════════════════════ -->
+    <ng-container *ngIf="authView === 'signup-choose'">
+      <h2 class="modal-title">Create an Account</h2>
+      <p class="modal-sub">Choose your role to get started.</p>
+
+      <div class="role-cards">
+        <div class="role-card" (click)="setView('signup-instructor')">
+          <div class="role-card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="role-card-title">Instructor</div>
+          <div class="role-card-desc">Manage sessions, generate QR codes, and track attendance in real-time.</div>
+          <div class="role-card-arrow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+
+        <div class="role-card" (click)="setView('signup-student')">
+          <div class="role-card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>
+          </div>
+          <div class="role-card-title">Student</div>
+          <div class="role-card-desc">Scan QR codes to mark attendance and view your attendance history.</div>
+          <div class="role-card-arrow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <p class="modal-switch">Already have an account? <a (click)="setView('login')">Log in</a></p>
+    </ng-container>
+
+    <!-- ════════════════════════════
+         VIEW: INSTRUCTOR SIGNUP
+         ════════════════════════════ -->
+    <ng-container *ngIf="authView === 'signup-instructor'">
+      <div class="modal-header-top">
+        <button class="modal-back" (click)="setView('signup-choose')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Back
+        </button>
+        <div class="modal-role-badge instructor">Instructor Sign Up</div>
+      </div>
+      <h2 class="modal-title">Create Instructor Account</h2>
+      <p class="modal-sub">Fill in your details to get started.</p>
+
+      <div class="form-row-modal">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" [(ngModel)]="instructorForm.firstName" placeholder="Juan" [class.error]="formErrors['firstName']"/>
+          <div class="field-error" *ngIf="formErrors['firstName']">{{ formErrors['firstName'] }}</div>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" [(ngModel)]="instructorForm.lastName" placeholder="Dela Cruz" [class.error]="formErrors['lastName']"/>
+          <div class="field-error" *ngIf="formErrors['lastName']">{{ formErrors['lastName'] }}</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Gmail Address</label>
+        <input type="email" [(ngModel)]="instructorForm.gmail" placeholder="instructor@gmail.com" [class.error]="formErrors['gmail']"/>
+        <div class="field-error" *ngIf="formErrors['gmail']">{{ formErrors['gmail'] }}</div>
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-eye">
+          <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="instructorForm.password" placeholder="Min. 8 characters" [class.error]="formErrors['password']"/>
+          <button type="button" class="eye-btn" (click)="showPassword = !showPassword">
+            <svg *ngIf="!showPassword" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg *ngIf="showPassword"  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+        <div class="field-error" *ngIf="formErrors['password']">{{ formErrors['password'] }}</div>
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div class="input-eye">
+          <input [type]="showConfirmPassword ? 'text' : 'password'" [(ngModel)]="instructorForm.confirmPassword" placeholder="Re-enter password" [class.error]="formErrors['confirmPassword']"/>
+          <button type="button" class="eye-btn" (click)="showConfirmPassword = !showConfirmPassword">
+            <svg *ngIf="!showConfirmPassword" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg *ngIf="showConfirmPassword"  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+        <div class="field-error" *ngIf="formErrors['confirmPassword']">{{ formErrors['confirmPassword'] }}</div>
+      </div>
+
+      <button class="btn-modal-submit" (click)="onInstructorSignup()" [disabled]="isLoading">
+        <span *ngIf="!isLoading">Create Account</span>
+        <span *ngIf="isLoading" class="loader"></span>
+      </button>
+
+      <p class="modal-switch">Already have an account? <a (click)="setView('login')">Log in</a></p>
+    </ng-container>
+
+    <!-- ════════════════════════════
+         VIEW: STUDENT SIGNUP
+         ════════════════════════════ -->
+    <ng-container *ngIf="authView === 'signup-student'">
+      <div class="modal-header-top">
+        <button class="modal-back" (click)="setView('signup-choose')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Back
+        </button>
+        <div class="modal-role-badge student">Student Sign Up</div>
+      </div>
+      <h2 class="modal-title">Create Student Account</h2>
+      <p class="modal-sub">Fill in your details to get started.</p>
+
+      <div class="form-row-modal">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" [(ngModel)]="studentForm.firstName" placeholder="Maria" [class.error]="formErrors['firstName']"/>
+          <div class="field-error" *ngIf="formErrors['firstName']">{{ formErrors['firstName'] }}</div>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" [(ngModel)]="studentForm.lastName" placeholder="Santos" [class.error]="formErrors['lastName']"/>
+          <div class="field-error" *ngIf="formErrors['lastName']">{{ formErrors['lastName'] }}</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" [(ngModel)]="studentForm.email" placeholder="student@email.com" [class.error]="formErrors['email']"/>
+        <div class="field-error" *ngIf="formErrors['email']">{{ formErrors['email'] }}</div>
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-eye">
+          <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="studentForm.password" placeholder="Min. 8 characters" [class.error]="formErrors['password']"/>
+          <button type="button" class="eye-btn" (click)="showPassword = !showPassword">
+            <svg *ngIf="!showPassword" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg *ngIf="showPassword"  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+        <div class="field-error" *ngIf="formErrors['password']">{{ formErrors['password'] }}</div>
+      </div>
+
+
+
+      <button class="btn-modal-submit" (click)="onStudentSignup()" [disabled]="isLoading">
+        <span *ngIf="!isLoading">Create Account</span>
+        <span *ngIf="isLoading" class="loader"></span>
+      </button>
+
+      <p class="modal-switch">Already have an account? <a (click)="setView('login')">Log in</a></p>
+    </ng-container>
+
+  </div>
+</div>

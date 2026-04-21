@@ -1,0 +1,98 @@
+<div class="reports-page">
+  <div class="filters">
+    <select [(ngModel)]="classFilter">
+      <option>All Classes</option>
+      <option *ngFor="let classItem of classOptions" [value]="classItem">{{ classItem }}</option>
+    </select>
+    <input type="date" [(ngModel)]="startDate" />
+    <input type="date" [(ngModel)]="endDate" />
+    <button type="button" (click)="exportCsv()" [disabled]="!filteredRecords.length">Export</button>
+  </div>
+
+  <div class="stats-grid">
+    <article class="stat-card">
+      <span>Attendance Rate</span>
+      <strong>{{ attendanceRate }}%</strong>
+    </article>
+    <article class="stat-card">
+      <span>Total Records</span>
+      <strong>{{ totalRecords }}</strong>
+    </article>
+    <article class="stat-card">
+      <span>Total Students</span>
+      <strong>{{ totalStudents }}</strong>
+    </article>
+    <article class="stat-card">
+      <span>Classes</span>
+      <strong>{{ totalClasses }}</strong>
+    </article>
+  </div>
+
+  <div class="charts">
+    <section class="panel">
+      <h3>Status Breakdown</h3>
+      <div class="bars">
+        <div class="bar-row" *ngFor="let item of statusBreakdown">
+          <div class="bar-meta">
+            <span>{{ item.label }}</span>
+            <small>{{ item.count }} ({{ item.percent }}%)</small>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="item.percent"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <h3>Attendance by Section</h3>
+      <div class="bars">
+        <div class="bar-row" *ngFor="let item of sectionBreakdown">
+          <div class="bar-meta">
+            <span>{{ item.section }}</span>
+            <small>{{ item.count }} ({{ item.percent }}%)</small>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill section" [style.width.%]="item.percent"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h3>Filtered Records</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>ID</th>
+            <th>Section</th>
+            <th>Subject</th>
+            <th>Date</th>
+            <th>Time In</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let record of filteredRecords">
+            <td>{{ record.studentName }}</td>
+            <td>{{ record.studentId }}</td>
+            <td>{{ record.section }}</td>
+            <td>{{ record.subject }}</td>
+            <td>{{ record.date }}</td>
+            <td>{{ record.timeIn }}</td>
+            <td>
+              <span class="status-badge" [class.late]="record.status === 'Late'" [class.absent]="record.status === 'Absent'">
+                {{ record.status }}
+              </span>
+            </td>
+          </tr>
+          <tr *ngIf="!filteredRecords.length">
+            <td colspan="7" class="empty">No records found for the selected filters.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

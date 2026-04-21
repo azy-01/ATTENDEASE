@@ -1,0 +1,76 @@
+<div class="overview-page">
+  <div class="stats-grid">
+    <div class="stat-card" *ngFor="let stat of stats">
+      <div class="stat-info">
+        <p class="stat-label">{{ stat.label }}</p>
+        <p class="stat-value">{{ stat.value }}</p>
+      </div>
+      <div class="stat-icon" [style.background]="stat.color + '18'">
+        <span class="material-icons" [style.color]="stat.color">{{ stat.icon }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="overview-body">
+    <div class="card attendance-log">
+      <h2 class="card-title">My Recent Attendance</h2>
+      <div class="table-responsive">
+        <table class="attendance-table">
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Section</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of recentAttendance">
+              <td>{{ item.subject }}</td>
+              <td><span class="class-badge">{{ item.section }}</span></td>
+              <td>{{ item.date }}</td>
+              <td>
+                <span class="status-badge" [ngClass]="item.status.toLowerCase()">{{ item.status }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="overview-right">
+      <div class="card">
+        <h2 class="card-title">Upcoming Classes</h2>
+        <ul class="upcoming-list">
+          <li *ngFor="let item of upcomingClasses">{{ item }}</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Calendar</h2>
+        <div class="mini-calendar">
+          <div class="cal-header">
+            <button class="cal-nav" (click)="prevMonth()">
+              <span class="material-icons">chevron_left</span>
+            </button>
+            <span class="cal-month-label">{{ currentMonthLabel }}</span>
+            <button class="cal-nav" (click)="nextMonth()">
+              <span class="material-icons">chevron_right</span>
+            </button>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-day-name" *ngFor="let d of dayNames">{{ d }}</div>
+            <div
+              *ngFor="let cell of calendarCells"
+              class="cal-day"
+              [class.today]="cell.isToday"
+              [class.empty]="!cell.day"
+            >
+              {{ cell.day || '' }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

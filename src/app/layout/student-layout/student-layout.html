@@ -1,0 +1,20 @@
+<div class="student-layout">
+  <app-student-sidebar
+    [isOpen]="sidebarOpen"
+    (closeSidebar)="sidebarOpen = false"
+  ></app-student-sidebar>
+
+  <div class="student-main">
+    <app-student-header
+      [pageTitle]="pageTitle"
+      [pageSubtitle]="pageSubtitle"
+      [userName]="userName"
+      [sidebarOpen]="sidebarOpen"
+      (menuToggle)="sidebarOpen = !sidebarOpen"
+    ></app-student-header>
+
+    <main class="student-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

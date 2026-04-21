@@ -1,0 +1,23 @@
+.instructor-layout {
+    display: flex;
+    min-height: 100vh;
+    background: #f4f5f9;
+}
+
+.instructor-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.instructor-content {
+    flex: 1;
+    padding: 24px;
+}
+
+@media (max-width: 768px) {
+    .instructor-content {
+        padding: 16px;
+    }
+}

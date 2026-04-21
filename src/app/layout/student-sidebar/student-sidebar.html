@@ -1,0 +1,38 @@
+<div
+  class="sidebar-overlay"
+  [class.visible]="isOpen"
+  (click)="close()"
+></div>
+
+<aside class="student-sidebar" [class.open]="isOpen">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <span class="material-icons">school</span>
+    </div>
+    <span class="logo-text">AttendEase</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a
+      *ngFor="let item of navItems"
+      [routerLink]="item.route"
+      routerLinkActive="active"
+      class="nav-item"
+      (click)="close()"
+    >
+      <span class="material-icons">{{ item.icon }}</span>
+      <span>{{ item.label }}</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button class="nav-item dark-mode-btn" (click)="toggleDarkMode()">
+      <span class="material-icons">dark_mode</span>
+      <span>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</span>
+    </button>
+    <button class="nav-item logout-btn" (click)="logout()">
+      <span class="material-icons">logout</span>
+      <span>Logout</span>
+    </button>
+  </div>
+</aside>

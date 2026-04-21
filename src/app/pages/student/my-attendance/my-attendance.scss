@@ -1,0 +1,146 @@
+.my-attendance-page {
+  width: 100%;
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 0;
+  border: 1px solid #f0f0f5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.filters-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f5;
+}
+
+.filters-row select,
+.filters-row input {
+  height: 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #374151;
+  background: #fff;
+  font-size: 0.8rem;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  th, td {
+    padding: 12px 20px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f5;
+    white-space: nowrap;
+  }
+
+  th {
+    color: #6b7280;
+    font-weight: 500;
+    background: #fff;
+  }
+}
+
+.class-badge {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.present {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &.late {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &.absent {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+}
+
+.empty-state {
+  padding: 24px 0;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .filters-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .filters-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+:host-context(body.dark-mode) {
+  .card {
+    background: #111827;
+    border-color: #1f2937;
+    box-shadow: none;
+  }
+
+  .filters-row {
+    border-bottom-color: #1f2937;
+  }
+
+  .filters-row select,
+  .filters-row input {
+    background: #0f172a;
+    border-color: #374151;
+    color: #e2e8f0;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    border-bottom-color: #1f2937;
+  }
+
+  .attendance-table th {
+    color: #94a3b8;
+    background: #0f172a;
+  }
+
+  .attendance-table td {
+    color: #e2e8f0;
+  }
+
+  .class-badge {
+    background: #1f2937;
+    color: #cbd5e1;
+  }
+
+  .empty-state {
+    color: #94a3b8;
+  }
+}

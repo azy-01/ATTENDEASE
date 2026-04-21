@@ -1,0 +1,163 @@
+.student-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 64px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8eaf0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #374151;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  .material-icons {
+    font-size: 20px;
+  }
+}
+
+.header-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.header-subtitle {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #374151;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  .material-icons {
+    font-size: 20px;
+  }
+}
+
+.notif-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+}
+
+.avatar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: flex;
+  }
+
+  .student-header {
+    padding: 0 16px;
+  }
+
+  .header-subtitle {
+    display: none;
+  }
+}
+
+:host-context(body.dark-mode) {
+  .student-header {
+    background: #111827;
+    border-bottom-color: #1f2937;
+    box-shadow: none;
+  }
+
+  .header-title {
+    color: #e2e8f0;
+  }
+
+  .header-subtitle {
+    color: #94a3b8;
+  }
+
+  .menu-toggle,
+  .icon-btn {
+    color: #cbd5e1;
+
+    &:hover {
+      background: #1f2937;
+    }
+  }
+
+  .notif-dot {
+    border-color: #111827;
+  }
+}

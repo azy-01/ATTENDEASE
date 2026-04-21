@@ -1,0 +1,264 @@
+.attendance-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+// ── Cards ──────────────────────────────────────────────────
+.card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px;
+    border: 1px solid #f0f0f5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 20px;
+
+    .material-icons {
+        font-size: 18px;
+        color: #4f46e5;
+    }
+}
+
+.card-title-plain {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 20px;
+}
+
+// ── Form ───────────────────────────────────────────────────
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    label {
+        font-size: 0.825rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    select {
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1.5px solid #e5e7eb;
+        font-size: 0.875rem;
+        color: #374151;
+        background: #fff;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+
+        &:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+    }
+}
+
+// ── Button ─────────────────────────────────────────────────
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    background: #4f46e5;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+
+    .material-icons {
+        font-size: 16px;
+    }
+
+    &:hover:not(:disabled) {
+        background: #4338ca;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.97);
+    }
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+}
+
+.loader {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+// ── Session list ───────────────────────────────────────────
+.session-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.session-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid #f3f4f6;
+
+    &:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    &:first-child {
+        padding-top: 0;
+    }
+}
+
+.session-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.session-subject {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+.session-meta {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+// ── Badges ─────────────────────────────────────────────────
+.badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+.badge-completed {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.badge-active {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.badge-cancelled {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+// ── Empty state ────────────────────────────────────────────
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 100px;
+    color: #9ca3af;
+    font-size: 0.875rem;
+
+    .material-icons {
+        font-size: 36px;
+        color: #d1d5db;
+    }
+
+    p {
+        margin: 0;
+    }
+}
+
+// ── Responsive ─────────────────────────────────────────────
+@media (max-width: 640px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+:host-context(body.dark-mode) {
+    .card {
+        background: #111827;
+        border-color: #1f2937;
+        box-shadow: none;
+    }
+
+    .card-title,
+    .card-title-plain,
+    .session-subject {
+        color: #e2e8f0;
+    }
+
+    .form-group label,
+    .session-meta,
+    .empty-state {
+        color: #94a3b8;
+    }
+
+    .form-group select {
+        background-color: #0f172a;
+        border-color: #374151;
+        color: #e2e8f0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    }
+
+    .session-item {
+        border-bottom-color: #1f2937;
+    }
+
+    .badge-completed {
+        background: #1f2937;
+        color: #cbd5e1;
+    }
+
+    .empty-state .material-icons {
+        color: #475569;
+    }
+}
