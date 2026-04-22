@@ -50,6 +50,12 @@
   aspect-ratio: 1 / 1;
 }
 
+.qr-wrap p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
 .qr-card p {
   margin: 0 0 12px;
   font-size: 0.68rem;
@@ -73,6 +79,11 @@
 
 .qr-card button .material-icons {
   font-size: 14px;
+}
+
+.qr-card button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
 }
 
 :host-context(body.dark-mode) {

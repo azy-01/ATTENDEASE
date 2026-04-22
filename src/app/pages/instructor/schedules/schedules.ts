@@ -2,14 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
-
-interface ScheduleItem {
-  day: string;
-  time: string;
-  title: string;
-  meta: string;
-  mode: 'Face-To-Face' | 'Online';
-}
+import { StudentApiService, type InstructorSchedule } from '../../../core/data/student-api.service';
 
 @Component({
   selector: 'app-schedules',
@@ -250,19 +243,19 @@ interface ScheduleItem {
 })
 export class SchedulesComponent {
   weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-  schedules: ScheduleItem[] = [
-    { day: 'MONDAY', time: '10:00 - 12:00', title: 'Networking 1 (IT222)', meta: 'BSIT1A, BSITB, BSIT2C • 108', mode: 'Face-To-Face' },
-    { day: 'TUESDAY', time: '13:00 - 15:00', title: 'Ethics (ETCHS)', meta: 'BSIT2C, BSIT2D • 202', mode: 'Face-To-Face' },
-    { day: 'TUESDAY', time: '13:00 - 15:00', title: 'Ethics (ETCHS)', meta: 'BSIT2C, BSIT2D • 202', mode: 'Face-To-Face' },
-  ];
+  schedules: InstructorSchedule[] = [];
   isModalOpen = false;
   isEditing = false;
-  editingSchedule: ScheduleItem | null = null;
+  editingSchedule: InstructorSchedule | null = null;
   modalError = '';
-  draftSchedule: ScheduleItem = this.createEmptySchedule();
+  draftSchedule: InstructorSchedule = this.createEmptySchedule();
 
-  get groupedDays(): { day: string; items: ScheduleItem[] }[] {
-    const grouped: Record<string, ScheduleItem[]> = {};
+  constructor(private readonly api: StudentApiService) {
+    void this.loadSchedules();
+  }
+
+  get groupedDays(): { day: string; items: InstructorSchedule[] }[] {
+    const grouped: Record<string, InstructorSchedule[]> = {};
     this.schedules.forEach((item) => {
       grouped[item.day] ??= [];
       grouped[item.day].push(item);
@@ -278,7 +271,7 @@ export class SchedulesComponent {
     this.isModalOpen = true;
   }
 
-  onEditSchedule(item: ScheduleItem): void {
+  onEditSchedule(item: InstructorSchedule): void {
     this.isEditing = true;
     this.editingSchedule = item;
     this.modalError = '';
@@ -286,7 +279,7 @@ export class SchedulesComponent {
     this.isModalOpen = true;
   }
 
-  async onDeleteSchedule(item: ScheduleItem): Promise<void> {
+  async onDeleteSchedule(item: InstructorSchedule): Promise<void> {
     const result = await Swal.fire({
       title: 'Delete schedule?',
       text: `This will remove "${item.title}" from your schedule list.`,
@@ -301,7 +294,12 @@ export class SchedulesComponent {
       reverseButtons: true,
     });
     if (!result.isConfirmed) return;
-    this.schedules = this.schedules.filter((schedule) => schedule !== item);
+    try {
+      await this.api.deleteInstructorSchedule(item.id);
+    } catch {
+      // Keep UI update even if backend call fails.
+    }
+    this.schedules = this.schedules.filter((schedule) => schedule.id !== item.id);
   }
 
   closeModal(): void {
@@ -309,8 +307,9 @@ export class SchedulesComponent {
     this.modalError = '';
   }
 
-  saveSchedule(): void {
-    const cleaned: ScheduleItem = {
+  async saveSchedule(): Promise<void> {
+    const cleaned: InstructorSchedule = {
+      id: this.draftSchedule.id || `schedule-${Date.now()}`,
       title: this.draftSchedule.title.trim(),
       day: this.draftSchedule.day,
       time: this.draftSchedule.time.trim(),
@@ -324,21 +323,44 @@ export class SchedulesComponent {
     }
 
     if (this.isEditing && this.editingSchedule) {
-      this.schedules = this.schedules.map((item) => (item === this.editingSchedule ? cleaned : item));
+      try {
+        const updated = await this.api.updateInstructorSchedule(this.editingSchedule.id, cleaned);
+        this.schedules = this.schedules.map((item) =>
+          item.id === this.editingSchedule?.id ? updated : item
+        );
+      } catch {
+        this.schedules = this.schedules.map((item) =>
+          item.id === this.editingSchedule?.id ? cleaned : item
+        );
+      }
     } else {
-      this.schedules = [...this.schedules, cleaned];
+      try {
+        const created = await this.api.addInstructorSchedule(cleaned);
+        this.schedules = [...this.schedules, created];
+      } catch {
+        this.schedules = [...this.schedules, cleaned];
+      }
     }
 
     this.closeModal();
   }
 
-  private createEmptySchedule(): ScheduleItem {
+  private createEmptySchedule(): InstructorSchedule {
     return {
+      id: '',
       day: 'MONDAY',
       time: '',
       title: '',
       meta: '',
       mode: 'Face-To-Face',
     };
+  }
+
+  private async loadSchedules(): Promise<void> {
+    try {
+      this.schedules = await this.api.getInstructorSchedules();
+    } catch {
+      this.schedules = [];
+    }
   }
 }

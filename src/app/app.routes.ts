@@ -16,7 +16,6 @@ import { MyAttendanceComponent } from './pages/student/my-attendance/my-attendan
 import { StudentScheduleComponent } from './pages/student/schedule/schedule';
 import { StudentQrCodeComponent } from './pages/student/qr-code/qr-code';
 import { StudentSettingsComponent } from './pages/student/settings/settings';
-import { StudentAccountComponent } from './pages/student/account/account';
 
 export const routes: Routes = [
     { path: '', component: LandingComponent },
@@ -45,7 +44,7 @@ export const routes: Routes = [
             { path: 'attendance', component: MyAttendanceComponent },
             { path: 'qr-code', component: StudentQrCodeComponent },
             { path: 'settings', component: StudentSettingsComponent },
-            { path: 'account', component: StudentAccountComponent },
+            { path: 'account', redirectTo: 'settings', pathMatch: 'full' },
             { path: '', redirectTo: 'overview', pathMatch: 'full' },
         ],
     },

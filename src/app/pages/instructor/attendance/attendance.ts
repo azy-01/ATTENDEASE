@@ -1,13 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-interface Session {
-  subject: string;
-  section: string;
-  date: string;
-  status: 'active' | 'completed' | 'cancelled';
-}
+import { StudentApiService, type InstructorSession } from '../../../core/data/student-api.service';
 
 @Component({
   selector: 'app-attendance',
@@ -42,31 +36,48 @@ export class AttendanceComponent {
     'Capstone Project',
   ];
 
-  recentSessions: Session[] = [
-    { subject: 'Ethics', section: 'BSIT2C', date: '2026-04-18', status: 'completed' },
-    { subject: 'Ethics', section: 'BSIT2C', date: '2026-04-15', status: 'completed' },
-  ];
+  recentSessions: InstructorSession[] = [];
+
+  constructor(private readonly api: StudentApiService) {
+    void this.loadSessions();
+  }
 
   startSession(): void {
     if (!this.selectedSection || !this.selectedSubject) return;
 
     this.isStarting = true;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       this.isStarting = false;
 
       // Add new session to the top of the list
       const today = new Date().toISOString().split('T')[0];
-      this.recentSessions.unshift({
+      const newSession: InstructorSession = {
+        id: `session-${Date.now()}`,
         subject: this.selectedSubject,
         section: this.selectedSection,
         date: today,
         status: 'active',
-      });
+      };
+
+      try {
+        const saved = await this.api.addInstructorSession(newSession);
+        this.recentSessions = [saved, ...this.recentSessions];
+      } catch {
+        this.recentSessions = [newSession, ...this.recentSessions];
+      }
 
       // Reset form
       this.selectedSection = '';
       this.selectedSubject = '';
     }, 1000);
+  }
+
+  private async loadSessions(): Promise<void> {
+    try {
+      this.recentSessions = await this.api.getInstructorSessions();
+    } catch {
+      this.recentSessions = [];
+    }
   }
 }

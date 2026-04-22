@@ -1,59 +1,71 @@
 # ATTENDEASE
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.7.
+ATTENDEASE is an Angular-based attendance management app with separate instructor and student experiences, powered by a mock API for local development.
 
-## Development server
+## Tech Stack
 
-To start a local development server, run:
+- Angular 21 (standalone components + router)
+- TypeScript
+- JSON Server (mock backend via `db.json`)
+- SweetAlert2 and QR code utilities
 
-```bash
-ng serve
-```
+## Prerequisites
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Node.js 20+
+- npm 11+
 
-## Code scaffolding
+## Getting Started
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Install dependencies:
 
 ```bash
-ng generate --help
+npm install
 ```
 
-## Building
-
-To build the project run:
+Run frontend and mock API together:
 
 ```bash
-ng build
+npm run dev
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+This starts:
 
-## Running unit tests
+- Angular app at `http://localhost:4200`
+- JSON Server API at `http://localhost:3000`
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+If you only need one service:
 
 ```bash
-ng test
+npm run start   # Angular only
+npm run api     # Mock API only
 ```
 
-## Running end-to-end tests
+## Available Scripts
 
-For end-to-end (e2e) testing, run:
+- `npm run dev` - Runs Angular and JSON Server concurrently
+- `npm run start` - Runs Angular dev server
+- `npm run api` - Runs JSON Server using `db.json`
+- `npm run build` - Creates production build in `dist/`
+- `npm run watch` - Development build in watch mode
+- `npm run test` - Runs unit tests
 
-```bash
-ng e2e
-```
+## App Routes
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Main route groups:
 
-## Additional Resources
+- `/` - Landing page
+- `/instructor/*` - Instructor dashboard pages (`overview`, `attendance`, `records`, `students`, `classes`, `schedules`, `reports`, `settings`)
+- `/student/*` - Student dashboard pages (`overview`, `schedule`, `attendance`, `qr-code`, `settings`)
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Project Notes
+
+- Mock data is stored in `db.json`.
+- This project uses standalone Angular components rather than NgModules.
+
+## Angular CLI
+
+This project uses Angular CLI `21.2.7`.
+
+Useful command reference:
+
+- [Angular CLI Overview](https://angular.dev/tools/cli)

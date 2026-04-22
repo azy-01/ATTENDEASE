@@ -12,14 +12,15 @@
 
 .filters-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   padding: 12px;
   border-bottom: 1px solid #f0f0f5;
 }
 
 .filters-row select,
-.filters-row input {
+.filters-row input,
+.filters-row button {
   height: 34px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -27,6 +28,11 @@
   color: #374151;
   background: #fff;
   font-size: 0.8rem;
+}
+
+.filters-row button {
+  cursor: pointer;
+  font-weight: 600;
 }
 
 .table-responsive {
@@ -115,7 +121,8 @@
   }
 
   .filters-row select,
-  .filters-row input {
+  .filters-row input,
+  .filters-row button {
     background: #0f172a;
     border-color: #374151;
     color: #e2e8f0;

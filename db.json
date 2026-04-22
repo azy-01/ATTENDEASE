@@ -1,0 +1,176 @@
+{
+  "students": [
+    {
+      "id": 1,
+      "fullName": "NRCK",
+      "email": "nerickjanio77@gmail.com"
+    }
+  ],
+  "schedules": [
+    {
+      "id": 1,
+      "day": "MONDAY",
+      "time": "10:00 - 12:00",
+      "subject": "Networking 1 (IT222)",
+      "meta": "BSIT1A, BSIT1B, BSIT2C - Azryth Sacuan - 108",
+      "mode": "Face-To-Face"
+    },
+    {
+      "id": 2,
+      "day": "MONDAY",
+      "time": "08:00 - 09:30",
+      "subject": "Web Development (IT301)",
+      "meta": "BSIT-3A - Prof. Admin - Lab 1",
+      "mode": "Face-To-Face"
+    },
+    {
+      "id": 3,
+      "day": "MONDAY",
+      "time": "10:00 - 11:30",
+      "subject": "Database Systems (IT302)",
+      "meta": "BSIT-3B - Prof. Admin - Lab 2",
+      "mode": "Face-To-Face"
+    },
+    {
+      "id": 4,
+      "day": "TUESDAY",
+      "time": "13:00 - 15:00",
+      "subject": "Ethics (ETCHS)",
+      "meta": "BSIT2C, BSIT2D - Azryth Sacuan - 202",
+      "mode": "Face-To-Face"
+    },
+    {
+      "id": 5,
+      "day": "TUESDAY",
+      "time": "08:00 - 09:30",
+      "subject": "Data Structures (CS201)",
+      "meta": "BSCS-2A - Prof. Admin - Room 301",
+      "mode": "Face-To-Face"
+    },
+    {
+      "id": 6,
+      "day": "WEDNESDAY",
+      "time": "13:00 - 14:30",
+      "subject": "Web Development (IT301)",
+      "meta": "BSIT-3A - Prof. Admin - LRT 1",
+      "mode": "Online"
+    }
+  ],
+  "attendanceRecords": [
+    {
+      "id": 1,
+      "subject": "Programming",
+      "section": "BSIT-2A",
+      "date": "2026-04-20",
+      "timeIn": "09:57 AM",
+      "status": "Present"
+    },
+    {
+      "id": 2,
+      "subject": "Database Management",
+      "section": "BSIT-2A",
+      "date": "2026-04-18",
+      "timeIn": "01:09 PM",
+      "status": "Late"
+    },
+    {
+      "id": 3,
+      "subject": "Networking",
+      "section": "BSIT-2A",
+      "date": "2026-04-16",
+      "timeIn": "10:01 AM",
+      "status": "Present"
+    },
+    {
+      "id": 4,
+      "subject": "Ethics",
+      "section": "BSIT-2A",
+      "date": "2026-04-14",
+      "timeIn": "--",
+      "status": "Absent"
+    },
+    {
+      "id": 5,
+      "subject": "Web Development",
+      "section": "BSIT-2A",
+      "date": "2026-04-12",
+      "timeIn": "03:00 PM",
+      "status": "Present"
+    }
+  ],
+  "instructorClasses": [
+    {
+      "id": "class-bsit2c",
+      "name": "BSIT2C",
+      "program": "Information Technology",
+      "yearLevel": "1st Year",
+      "studentCount": 42,
+      "status": "active"
+    },
+    {
+      "id": "class-bsit1a",
+      "name": "BSIT1A",
+      "program": "Information Technology",
+      "yearLevel": "1st Year",
+      "studentCount": 38,
+      "status": "active"
+    }
+  ],
+  "instructorStudents": [
+    {
+      "id": "std-1",
+      "name": "Glaiza Kaye Valcorza",
+      "studentId": "2024123456",
+      "email": "asdfg@gmail.com",
+      "section": "BSIT1B"
+    },
+    {
+      "id": "std-2",
+      "name": "Azryth Sacuan",
+      "studentId": "20241234567",
+      "email": "abcdefg@gmail.com",
+      "section": "BSIT1A"
+    }
+  ],
+  "instructorSchedules": [
+    {
+      "id": "ins-sch-1",
+      "day": "MONDAY",
+      "time": "10:00 - 12:00",
+      "title": "Networking 1 (IT222)",
+      "meta": "BSIT1A, BSIT1B, BSIT2C - 108",
+      "mode": "Face-To-Face"
+    },
+    {
+      "id": "ins-sch-2",
+      "day": "TUESDAY",
+      "time": "13:00 - 15:00",
+      "title": "Ethics (ETCHS)",
+      "meta": "BSIT2C, BSIT2D - 202",
+      "mode": "Face-To-Face"
+    }
+  ],
+  "instructorSessions": [
+    {
+      "id": "session-1",
+      "subject": "Ethics",
+      "section": "BSIT2C",
+      "date": "2026-04-18",
+      "status": "completed"
+    },
+    {
+      "id": "session-2",
+      "subject": "Ethics",
+      "section": "BSIT2C",
+      "date": "2026-04-15",
+      "status": "completed"
+    }
+  ],
+  "instructorAccounts": [
+    {
+      "id": "ins-acc-1",
+      "fullName": "Azryth Sacuan",
+      "email": "sacuan.azryth0@gmail.com"
+    }
+  ]
+}

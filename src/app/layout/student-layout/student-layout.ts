@@ -51,11 +51,11 @@ export class StudentLayoutComponent implements OnInit, OnDestroy {
       this.pageTitle = 'My QR Code';
       this.pageSubtitle = 'Your personal attendance QR code';
     } else if (url.includes('/student/settings')) {
-      this.pageTitle = 'Settings';
-      this.pageSubtitle = 'Your preferences';
+      this.pageTitle = 'Account & Settings';
+      this.pageSubtitle = 'Manage your profile and preferences';
     } else if (url.includes('/student/account')) {
-      this.pageTitle = 'Account';
-      this.pageSubtitle = 'Your profile';
+      this.pageTitle = 'Account & Settings';
+      this.pageSubtitle = 'Manage your profile and preferences';
     } else {
       this.pageTitle = 'Overview';
       this.pageSubtitle = 'Welcome, NRCK';

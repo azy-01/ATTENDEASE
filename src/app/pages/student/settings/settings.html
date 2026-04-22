@@ -1,22 +1,48 @@
 <div class="settings-page">
   <section class="card">
-    <h3>Account</h3>
+    <h3>Profile Information</h3>
     <div class="profile-head">
-      <div class="avatar">N</div>
+      <div class="avatar">{{ avatarInitial }}</div>
       <div>
         <strong>{{ fullName }}</strong>
         <p>{{ email }}</p>
       </div>
     </div>
     <label>Full Name</label>
-    <input [value]="fullName" readonly />
+    <input [(ngModel)]="fullName" />
     <label>Email</label>
-    <input [value]="email" readonly />
-    <div class="actions">
-      <button type="button" class="save-btn" (click)="saveChanges()">Save Changes</button>
-      <p class="save-message" *ngIf="saveMessage">{{ saveMessage }}</p>
+    <input [(ngModel)]="email" />
+  </section>
+
+  <section class="card">
+    <h3>Preferences</h3>
+    <div class="toggle-row">
+      <div>
+        <strong>Email Notifications</strong>
+        <p>Receive updates about classes and announcements.</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" [(ngModel)]="emailNotifications" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <div>
+        <strong>Attendance Reminders</strong>
+        <p>Get reminders before your scheduled classes.</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" [(ngModel)]="attendanceReminders" />
+        <span class="slider"></span>
+      </label>
     </div>
   </section>
+
+  <div class="actions">
+    <button type="button" class="save-btn" (click)="saveChanges()">Save Changes</button>
+    <p class="save-message" *ngIf="saveMessage">{{ saveMessage }}</p>
+  </div>
 
   <button type="button" class="logout-btn" (click)="logout()">
     <span class="material-icons">logout</span>

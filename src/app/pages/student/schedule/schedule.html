@@ -1,7 +1,5 @@
 <div class="schedule-page">
-  <div class="top-actions">
-    <button type="button">+ Add Schedule</button>
-  </div>
+  <p class="manage-note">Schedules are managed by your instructor.</p>
 
   <section class="day-group" *ngFor="let group of groupedDays">
     <h3>{{ group.day }}</h3>
@@ -18,12 +16,6 @@
 
       <div class="class-right">
         <span>{{ item.mode }}</span>
-        <button type="button" class="icon-btn" aria-label="Edit schedule">
-          <span class="material-icons">edit</span>
-        </button>
-        <button type="button" class="icon-btn delete" aria-label="Delete schedule">
-          <span class="material-icons">delete_outline</span>
-        </button>
       </div>
     </div>
   </section>

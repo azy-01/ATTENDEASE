@@ -1,13 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import Swal from 'sweetalert2';
-
-interface StudentRow {
-  name: string;
-  studentId: string;
-  email: string;
-  section: string;
-}
+import { StudentApiService, type InstructorStudent } from '../../../core/data/student-api.service';
 
 @Component({
   selector: 'app-students',
@@ -282,38 +276,41 @@ interface StudentRow {
   `],
 })
 export class StudentsComponent {
-  students: StudentRow[] = [
-    { name: 'Glaiza Kaye Valcorza', studentId: '2024123456', email: 'asdfg@gmail.com', section: 'BSIT1B' },
-    { name: 'Azryth Sacuan', studentId: '20241234567', email: 'abcdefg@gmail.com', section: 'BSIT1A' },
-  ];
+  students: InstructorStudent[] = [];
   searchTerm = '';
   isEditModalOpen = false;
   isAddModalOpen = false;
   editingStudentId = '';
-  editDraft: StudentRow = {
+  editDraft: InstructorStudent = {
+    id: '',
     name: '',
     studentId: '',
     email: '',
     section: '',
   };
-  addDraft: StudentRow = {
+  addDraft: InstructorStudent = {
+    id: '',
     name: '',
     studentId: '',
     email: '',
     section: '',
   };
 
+  constructor(private readonly api: StudentApiService) {
+    void this.loadStudents();
+  }
+
   openAddModal(): void {
     this.isAddModalOpen = true;
-    this.addDraft = { name: '', studentId: '', email: '', section: '' };
+    this.addDraft = { id: '', name: '', studentId: '', email: '', section: '' };
   }
 
   closeAddModal(): void {
     this.isAddModalOpen = false;
-    this.addDraft = { name: '', studentId: '', email: '', section: '' };
+    this.addDraft = { id: '', name: '', studentId: '', email: '', section: '' };
   }
 
-  onAddFieldChange(field: keyof StudentRow, event: Event): void {
+  onAddFieldChange(field: keyof InstructorStudent, event: Event): void {
     const target = event.target as HTMLInputElement;
     this.addDraft = {
       ...this.addDraft,
@@ -321,8 +318,9 @@ export class StudentsComponent {
     };
   }
 
-  saveNewStudent(): void {
-    const newStudent: StudentRow = {
+  async saveNewStudent(): Promise<void> {
+    const newStudent: InstructorStudent = {
+      id: this.addDraft.id || `student-${Date.now()}`,
       name: this.addDraft.name.trim(),
       studentId: this.addDraft.studentId.trim(),
       email: this.addDraft.email.trim(),
@@ -338,7 +336,12 @@ export class StudentsComponent {
       return;
     }
 
-    this.students = [...this.students, newStudent];
+    try {
+      const created = await this.api.addInstructorStudent(newStudent);
+      this.students = [...this.students, created];
+    } catch {
+      this.students = [...this.students, newStudent];
+    }
     this.closeAddModal();
   }
 
@@ -347,7 +350,7 @@ export class StudentsComponent {
     this.searchTerm = target.value;
   }
 
-  get filteredStudents(): StudentRow[] {
+  get filteredStudents(): InstructorStudent[] {
     const query = this.searchTerm.trim().toLowerCase();
     if (!query) {
       return this.students;
@@ -363,7 +366,7 @@ export class StudentsComponent {
     });
   }
 
-  editStudent(student: StudentRow): void {
+  editStudent(student: InstructorStudent): void {
     this.isEditModalOpen = true;
     this.editingStudentId = student.studentId;
     this.editDraft = { ...student };
@@ -372,10 +375,10 @@ export class StudentsComponent {
   closeEditModal(): void {
     this.isEditModalOpen = false;
     this.editingStudentId = '';
-    this.editDraft = { name: '', studentId: '', email: '', section: '' };
+    this.editDraft = { id: '', name: '', studentId: '', email: '', section: '' };
   }
 
-  onEditFieldChange(field: keyof StudentRow, event: Event): void {
+  onEditFieldChange(field: keyof InstructorStudent, event: Event): void {
     const target = event.target as HTMLInputElement;
     this.editDraft = {
       ...this.editDraft,
@@ -383,23 +386,30 @@ export class StudentsComponent {
     };
   }
 
-  saveEditedStudent(): void {
+  async saveEditedStudent(): Promise<void> {
     if (!this.editingStudentId) {
       return;
     }
 
-    this.students = this.students.map((student) => {
-      if (student.studentId !== this.editingStudentId) {
-        return student;
-      }
+    const current = this.students.find((student) => student.studentId === this.editingStudentId);
+    if (!current) return;
 
-      return { ...this.editDraft };
-    });
+    const updatedDraft = { ...this.editDraft, id: current.id };
+    try {
+      const updated = await this.api.updateInstructorStudent(current.id, updatedDraft);
+      this.students = this.students.map((student) =>
+        student.studentId !== this.editingStudentId ? student : updated
+      );
+    } catch {
+      this.students = this.students.map((student) =>
+        student.studentId !== this.editingStudentId ? student : updatedDraft
+      );
+    }
 
     this.closeEditModal();
   }
 
-  async deleteStudent(student: StudentRow): Promise<void> {
+  async deleteStudent(student: InstructorStudent): Promise<void> {
     const result = await Swal.fire({
       title: 'Delete student?',
       text: `This will remove ${student.name} from your class list.`,
@@ -418,6 +428,19 @@ export class StudentsComponent {
       return;
     }
 
-    this.students = this.students.filter((row) => row.studentId !== student.studentId);
+    try {
+      await this.api.deleteInstructorStudent(student.id);
+    } catch {
+      // Keep UI update as fallback.
+    }
+    this.students = this.students.filter((row) => row.id !== student.id);
+  }
+
+  private async loadStudents(): Promise<void> {
+    try {
+      this.students = await this.api.getInstructorStudents();
+    } catch {
+      this.students = [];
+    }
   }
 }

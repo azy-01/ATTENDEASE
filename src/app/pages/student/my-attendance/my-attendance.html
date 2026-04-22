@@ -3,12 +3,17 @@
     <div class="filters-row">
       <select [(ngModel)]="selectedSubject">
         <option value="">All Subjects</option>
+        <option *ngFor="let subject of subjects" [value]="subject">{{ subject }}</option>
       </select>
       <select [(ngModel)]="selectedStatus">
         <option value="">All Status</option>
+        <option value="Present">Present</option>
+        <option value="Late">Late</option>
+        <option value="Absent">Absent</option>
       </select>
       <input type="date" [(ngModel)]="fromDate" />
       <input type="date" [(ngModel)]="toDate" />
+      <button type="button" (click)="clearFilters()">Clear Filters</button>
     </div>
 
     <div class="table-responsive">

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { StudentApiService, type InstructorAccount } from '../../../core/data/student-api.service';
 
 @Component({
   selector: 'app-account',
@@ -63,25 +64,18 @@ import { FormsModule } from '@angular/forms';
 })
 export class AccountComponent {
   private readonly profileStorageKey = 'instructor-account-profile';
+  private accountId = 'ins-acc-1';
 
   fullName = 'Azryth Sacuan';
   email = 'sacuan.azryth0@gmail.com';
   saveMessage = '';
 
-  constructor() {
-    const savedProfile = localStorage.getItem(this.profileStorageKey);
-    if (!savedProfile) return;
-
-    try {
-      const parsed = JSON.parse(savedProfile) as { fullName?: string; email?: string };
-      if (parsed.fullName) this.fullName = parsed.fullName;
-      if (parsed.email) this.email = parsed.email;
-    } catch {
-      localStorage.removeItem(this.profileStorageKey);
-    }
+  constructor(private readonly api: StudentApiService) {
+    this.loadProfileFromLocalStorage();
+    void this.loadProfileFromApi();
   }
 
-  saveChanges(): void {
+  async saveChanges(): Promise<void> {
     const trimmedName = this.fullName.trim();
     const trimmedEmail = this.email.trim();
 
@@ -96,6 +90,47 @@ export class AccountComponent {
       this.profileStorageKey,
       JSON.stringify({ fullName: this.fullName, email: this.email })
     );
-    this.saveMessage = 'Changes saved.';
+
+    const payload: InstructorAccount = {
+      id: this.accountId,
+      fullName: this.fullName,
+      email: this.email,
+    };
+
+    try {
+      const updated = await this.api.updateInstructorAccount(this.accountId, payload);
+      this.accountId = updated.id;
+      this.fullName = updated.fullName;
+      this.email = updated.email;
+      this.saveMessage = 'Changes saved.';
+    } catch {
+      this.saveMessage = 'Changes saved locally. API not reachable.';
+    }
+  }
+
+  private loadProfileFromLocalStorage(): void {
+    const savedProfile = localStorage.getItem(this.profileStorageKey);
+    if (!savedProfile) return;
+
+    try {
+      const parsed = JSON.parse(savedProfile) as { fullName?: string; email?: string };
+      if (parsed.fullName) this.fullName = parsed.fullName;
+      if (parsed.email) this.email = parsed.email;
+    } catch {
+      localStorage.removeItem(this.profileStorageKey);
+    }
+  }
+
+  private async loadProfileFromApi(): Promise<void> {
+    try {
+      const account = await this.api.getInstructorAccount();
+      if (!account) return;
+
+      this.accountId = account.id;
+      this.fullName = account.fullName;
+      this.email = account.email;
+    } catch {
+      // Keep local fallback values.
+    }
   }
 }

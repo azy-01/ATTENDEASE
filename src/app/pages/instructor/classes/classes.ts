@@ -1,15 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import Swal from 'sweetalert2';
-
-interface ClassCard {
-  id: string;
-  name: string;
-  program: string;
-  yearLevel: string;
-  studentCount: number;
-  status: 'active' | 'inactive';
-}
+import { StudentApiService, type InstructorClass } from '../../../core/data/student-api.service';
 
 @Component({
   selector: 'app-classes',
@@ -235,22 +227,12 @@ interface ClassCard {
   `],
 })
 export class ClassesComponent {
-  private readonly classesStorageKey = 'attendease-instructor-classes';
-  classes: ClassCard[] = [
-    {
-      id: 'default-bsit2c',
-      name: 'BSIT2C',
-      program: 'Information Technology',
-      yearLevel: '1st Year',
-      studentCount: 0,
-      status: 'active',
-    },
-  ];
+  classes: InstructorClass[] = [];
   isModalOpen = false;
   isEditMode = false;
   editingClassId = '';
   formError = '';
-  classDraft: ClassCard = {
+  classDraft: InstructorClass = {
     id: '',
     name: '',
     program: '',
@@ -259,8 +241,8 @@ export class ClassesComponent {
     status: 'active',
   };
 
-  constructor() {
-    this.loadClasses();
+  constructor(private readonly api: StudentApiService) {
+    void this.loadClasses();
   }
 
   openAddModal(): void {
@@ -278,7 +260,7 @@ export class ClassesComponent {
     };
   }
 
-  editClass(classItem: ClassCard): void {
+  editClass(classItem: InstructorClass): void {
     this.isEditMode = true;
     this.isModalOpen = true;
     this.editingClassId = classItem.id;
@@ -309,7 +291,7 @@ export class ClassesComponent {
     };
   }
 
-  saveClass(): void {
+  async saveClass(): Promise<void> {
     const draft = {
       ...this.classDraft,
       name: this.classDraft.name.trim(),
@@ -330,23 +312,27 @@ export class ClassesComponent {
     }
 
     if (!this.isEditMode) {
-      this.classes = [...this.classes, { ...draft, id: this.createClassId() }];
-      this.persistClasses();
+      const newClass = { ...draft, id: this.createClassId() };
+      try {
+        const created = await this.api.addInstructorClass(newClass);
+        this.classes = [...this.classes, created];
+      } catch {
+        this.classes = [...this.classes, newClass];
+      }
       this.closeModal();
       return;
     }
 
-    this.classes = this.classes.map((row) => {
-      if (row.id !== this.editingClassId) {
-        return row;
-      }
-      return draft;
-    });
-    this.persistClasses();
+    try {
+      const updated = await this.api.updateInstructorClass(this.editingClassId, draft);
+      this.classes = this.classes.map((row) => (row.id !== this.editingClassId ? row : updated));
+    } catch {
+      this.classes = this.classes.map((row) => (row.id !== this.editingClassId ? row : draft));
+    }
     this.closeModal();
   }
 
-  async deleteClass(classItem: ClassCard): Promise<void> {
+  async deleteClass(classItem: InstructorClass): Promise<void> {
     const result = await Swal.fire({
       title: 'Delete class?',
       text: `This will permanently remove ${classItem.name}.`,
@@ -365,31 +351,23 @@ export class ClassesComponent {
       return;
     }
 
-    this.classes = this.classes.filter((row) => row !== classItem);
-    this.persistClasses();
+    try {
+      await this.api.deleteInstructorClass(classItem.id);
+    } catch {
+      // Keep UI responsive with local removal fallback.
+    }
+    this.classes = this.classes.filter((row) => row.id !== classItem.id);
   }
 
   private createClassId(): string {
     return `class-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  private persistClasses(): void {
-    localStorage.setItem(this.classesStorageKey, JSON.stringify(this.classes));
-  }
-
-  private loadClasses(): void {
-    const savedClasses = localStorage.getItem(this.classesStorageKey);
-    if (!savedClasses) {
-      return;
-    }
-
+  private async loadClasses(): Promise<void> {
     try {
-      const parsed = JSON.parse(savedClasses) as ClassCard[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        this.classes = parsed;
-      }
+      this.classes = await this.api.getInstructorClasses();
     } catch {
-      // Ignore corrupted local data and keep defaults.
+      this.classes = [];
     }
   }
 }

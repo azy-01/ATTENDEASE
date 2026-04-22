@@ -28,8 +28,7 @@ export class StudentSidebarComponent implements OnInit {
     { route: '/student/schedule', icon: 'calendar_month', label: 'Schedule' },
     { route: '/student/attendance', icon: 'fact_check', label: 'Attendance' },
     { route: '/student/qr-code', icon: 'qr_code_2', label: 'QR Code' },
-    { route: '/student/settings', icon: 'settings', label: 'Settings' },
-    { route: '/student/account', icon: 'person', label: 'Account' },
+    { route: '/student/settings', icon: 'manage_accounts', label: 'Account & Settings' },
   ];
 
   constructor(private router: Router) { }

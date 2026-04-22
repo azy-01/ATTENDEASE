@@ -2,15 +2,19 @@
   <section class="qr-card">
     <h3>Attendance QR Code</h3>
 
-    <div class="avatar">N</div>
+    <div class="avatar">{{ fullName.charAt(0) || 'S' }}</div>
     <strong>{{ fullName }}</strong>
 
     <div class="qr-wrap">
-      <img [src]="qrImage" alt="Attendance QR Code" />
+      @if (qrImage) {
+        <img [src]="qrImage" alt="Attendance QR Code" />
+      } @else {
+        <p>{{ isGeneratingQr ? 'Generating QR code...' : 'Unable to generate QR code.' }}</p>
+      }
     </div>
 
     <p>Show this QR code to your instructor during attendance sessions.</p>
-    <button type="button">
+    <button type="button" (click)="downloadQrCode()" [disabled]="!qrImage">
       <span class="material-icons">download</span>
       Download QR Code
     </button>
