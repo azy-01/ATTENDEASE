@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
 import { StudentApiService, type InstructorStudent } from '../../../core/data/student-api.service';
 
@@ -276,7 +276,7 @@ import { StudentApiService, type InstructorStudent } from '../../../core/data/st
   `],
 })
 export class StudentsComponent {
-  students: InstructorStudent[] = [];
+  readonly students = signal<InstructorStudent[]>([]);
   searchTerm = '';
   isEditModalOpen = false;
   isAddModalOpen = false;
@@ -331,16 +331,16 @@ export class StudentsComponent {
       return;
     }
 
-    const hasDuplicateId = this.students.some((student) => student.studentId === newStudent.studentId);
+    const hasDuplicateId = this.students().some((student) => student.studentId === newStudent.studentId);
     if (hasDuplicateId) {
       return;
     }
 
     try {
       const created = await this.api.addInstructorStudent(newStudent);
-      this.students = [...this.students, created];
+      this.students.set([...this.students(), created]);
     } catch {
-      this.students = [...this.students, newStudent];
+      this.students.set([...this.students(), newStudent]);
     }
     this.closeAddModal();
   }
@@ -352,11 +352,12 @@ export class StudentsComponent {
 
   get filteredStudents(): InstructorStudent[] {
     const query = this.searchTerm.trim().toLowerCase();
+    const list = this.students();
     if (!query) {
-      return this.students;
+      return list;
     }
 
-    return this.students.filter((student) => {
+    return list.filter((student) => {
       return (
         student.name.toLowerCase().includes(query) ||
         student.studentId.toLowerCase().includes(query) ||
@@ -391,18 +392,22 @@ export class StudentsComponent {
       return;
     }
 
-    const current = this.students.find((student) => student.studentId === this.editingStudentId);
+    const current = this.students().find((student) => student.studentId === this.editingStudentId);
     if (!current) return;
 
     const updatedDraft = { ...this.editDraft, id: current.id };
     try {
       const updated = await this.api.updateInstructorStudent(current.id, updatedDraft);
-      this.students = this.students.map((student) =>
-        student.studentId !== this.editingStudentId ? student : updated
+      this.students.set(
+        this.students().map((student) =>
+          student.studentId !== this.editingStudentId ? student : updated
+        )
       );
     } catch {
-      this.students = this.students.map((student) =>
-        student.studentId !== this.editingStudentId ? student : updatedDraft
+      this.students.set(
+        this.students().map((student) =>
+          student.studentId !== this.editingStudentId ? student : updatedDraft
+        )
       );
     }
 
@@ -433,14 +438,14 @@ export class StudentsComponent {
     } catch {
       // Keep UI update as fallback.
     }
-    this.students = this.students.filter((row) => row.id !== student.id);
+    this.students.set(this.students().filter((row) => row.id !== student.id));
   }
 
   private async loadStudents(): Promise<void> {
     try {
-      this.students = await this.api.getInstructorStudents();
+      this.students.set(await this.api.getInstructorStudents());
     } catch {
-      this.students = [];
+      this.students.set([]);
     }
   }
 }

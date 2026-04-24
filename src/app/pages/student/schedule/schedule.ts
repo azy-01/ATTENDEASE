@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { StudentApiService, type ScheduleItem } from '../../../core/data/student-api.service';
 
 @Component({
@@ -10,7 +10,7 @@ import { StudentApiService, type ScheduleItem } from '../../../core/data/student
   styleUrls: ['./schedule.scss'],
 })
 export class StudentScheduleComponent {
-  schedules: ScheduleItem[] = [];
+  readonly schedules = signal<ScheduleItem[]>([]);
 
   constructor(private readonly studentApi: StudentApiService) {
     void this.loadSchedules();
@@ -18,7 +18,7 @@ export class StudentScheduleComponent {
 
   get groupedDays(): { day: string; items: ScheduleItem[] }[] {
     const grouped: Record<string, ScheduleItem[]> = {};
-    this.schedules.forEach((item) => {
+    this.schedules().forEach((item) => {
       grouped[item.day] ??= [];
       grouped[item.day].push(item);
     });
@@ -27,9 +27,9 @@ export class StudentScheduleComponent {
 
   private async loadSchedules(): Promise<void> {
     try {
-      this.schedules = await this.studentApi.getSchedules();
+      this.schedules.set(await this.studentApi.getSchedules());
     } catch {
-      this.schedules = [];
+      this.schedules.set([]);
     }
   }
 }

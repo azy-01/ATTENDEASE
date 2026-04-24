@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StudentApiService, type InstructorAccount } from '../../../core/data/student-api.service';
 
@@ -14,17 +14,17 @@ import { StudentApiService, type InstructorAccount } from '../../../core/data/st
         <div class="profile-head">
           <div class="avatar">A</div>
           <div>
-            <strong>{{ fullName }}</strong>
-            <p>{{ email }}</p>
+            <strong>{{ fullName() }}</strong>
+            <p>{{ email() }}</p>
           </div>
         </div>
 
         <label>Full Name</label>
-        <input [(ngModel)]="fullName" />
+        <input [ngModel]="fullName()" (ngModelChange)="fullName.set($event)" />
         <label>Email</label>
-        <input [(ngModel)]="email" />
+        <input [ngModel]="email()" (ngModelChange)="email.set($event)" />
         <button type="button" class="save-btn" (click)="saveChanges()">Save Changes</button>
-        <p class="save-message" *ngIf="saveMessage">{{ saveMessage }}</p>
+        <p class="save-message" *ngIf="saveMessage()">{{ saveMessage() }}</p>
       </section>
 
     </div>
@@ -66,9 +66,9 @@ export class AccountComponent {
   private readonly profileStorageKey = 'instructor-account-profile';
   private accountId = 'ins-acc-1';
 
-  fullName = 'Azryth Sacuan';
-  email = 'sacuan.azryth0@gmail.com';
-  saveMessage = '';
+  readonly fullName = signal('Azryth Sacuan');
+  readonly email = signal('sacuan.azryth0@gmail.com');
+  readonly saveMessage = signal('');
 
   constructor(private readonly api: StudentApiService) {
     this.loadProfileFromLocalStorage();
@@ -76,35 +76,35 @@ export class AccountComponent {
   }
 
   async saveChanges(): Promise<void> {
-    const trimmedName = this.fullName.trim();
-    const trimmedEmail = this.email.trim();
+    const trimmedName = this.fullName().trim();
+    const trimmedEmail = this.email().trim();
 
     if (!trimmedName || !trimmedEmail) {
-      this.saveMessage = 'Name and email are required.';
+      this.saveMessage.set('Name and email are required.');
       return;
     }
 
-    this.fullName = trimmedName;
-    this.email = trimmedEmail;
+    this.fullName.set(trimmedName);
+    this.email.set(trimmedEmail);
     localStorage.setItem(
       this.profileStorageKey,
-      JSON.stringify({ fullName: this.fullName, email: this.email })
+      JSON.stringify({ fullName: this.fullName(), email: this.email() })
     );
 
     const payload: InstructorAccount = {
       id: this.accountId,
-      fullName: this.fullName,
-      email: this.email,
+      fullName: this.fullName(),
+      email: this.email(),
     };
 
     try {
       const updated = await this.api.updateInstructorAccount(this.accountId, payload);
       this.accountId = updated.id;
-      this.fullName = updated.fullName;
-      this.email = updated.email;
-      this.saveMessage = 'Changes saved.';
+      this.fullName.set(updated.fullName);
+      this.email.set(updated.email);
+      this.saveMessage.set('Changes saved.');
     } catch {
-      this.saveMessage = 'Changes saved locally. API not reachable.';
+      this.saveMessage.set('Changes saved locally. API not reachable.');
     }
   }
 
@@ -114,8 +114,8 @@ export class AccountComponent {
 
     try {
       const parsed = JSON.parse(savedProfile) as { fullName?: string; email?: string };
-      if (parsed.fullName) this.fullName = parsed.fullName;
-      if (parsed.email) this.email = parsed.email;
+      if (parsed.fullName) this.fullName.set(parsed.fullName);
+      if (parsed.email) this.email.set(parsed.email);
     } catch {
       localStorage.removeItem(this.profileStorageKey);
     }
@@ -127,8 +127,8 @@ export class AccountComponent {
       if (!account) return;
 
       this.accountId = account.id;
-      this.fullName = account.fullName;
-      this.email = account.email;
+      this.fullName.set(account.fullName);
+      this.email.set(account.email);
     } catch {
       // Keep local fallback values.
     }

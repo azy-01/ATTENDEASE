@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import QRCode from 'qrcode';
 import { StudentApiService } from '../../../core/data/student-api.service';
 
@@ -11,21 +11,22 @@ import { StudentApiService } from '../../../core/data/student-api.service';
 export class StudentQrCodeComponent {
   private readonly profileStorageKey = 'student-account-profile';
 
-  fullName = 'NRCK';
-  email = 'nerickjanio77@gmail.com';
-  qrImage = '';
-  isGeneratingQr = true;
+  readonly fullName = signal('NRCK');
+  readonly email = signal('nerickjanio77@gmail.com');
+  readonly qrImage = signal('');
+  readonly isGeneratingQr = signal(true);
 
   constructor(private readonly studentApi: StudentApiService) {
     void this.initializeProfile();
   }
 
   async downloadQrCode(): Promise<void> {
-    if (!this.qrImage) return;
+    const image = this.qrImage();
+    if (!image) return;
 
     const link = document.createElement('a');
-    link.href = this.qrImage;
-    link.download = `attendease-qr-${this.fullName.toLowerCase().replace(/\s+/g, '-')}.png`;
+    link.href = image;
+    link.download = `attendease-qr-${this.fullName().toLowerCase().replace(/\s+/g, '-')}.png`;
     link.click();
   }
 
@@ -35,8 +36,8 @@ export class StudentQrCodeComponent {
 
     try {
       const parsed = JSON.parse(savedProfile) as { fullName?: string; email?: string };
-      if (parsed.fullName) this.fullName = parsed.fullName;
-      if (parsed.email) this.email = parsed.email;
+      if (parsed.fullName) this.fullName.set(parsed.fullName);
+      if (parsed.email) this.email.set(parsed.email);
     } catch {
       localStorage.removeItem(this.profileStorageKey);
     }
@@ -46,10 +47,10 @@ export class StudentQrCodeComponent {
     this.loadProfileFromLocalStorage();
 
     try {
-      const studentProfile = await this.studentApi.getStudentProfile(this.email);
+      const studentProfile = await this.studentApi.getStudentProfile(this.email());
       if (studentProfile) {
-        this.fullName = studentProfile.fullName;
-        this.email = studentProfile.email;
+        this.fullName.set(studentProfile.fullName);
+        this.email.set(studentProfile.email);
       }
     } catch {
       // Keep current local profile when API is unavailable.
@@ -59,23 +60,25 @@ export class StudentQrCodeComponent {
   }
 
   private async generateQrCode(): Promise<void> {
-    this.isGeneratingQr = true;
+    this.isGeneratingQr.set(true);
     const payload = JSON.stringify({
       app: 'ATTENDEASE',
       role: 'student',
-      fullName: this.fullName,
-      email: this.email,
+      fullName: this.fullName(),
+      email: this.email(),
     });
 
     try {
-      this.qrImage = await QRCode.toDataURL(payload, {
-        width: 280,
-        margin: 1,
-      });
+      this.qrImage.set(
+        await QRCode.toDataURL(payload, {
+          width: 280,
+          margin: 1,
+        })
+      );
     } catch {
-      this.qrImage = '';
+      this.qrImage.set('');
     } finally {
-      this.isGeneratingQr = false;
+      this.isGeneratingQr.set(false);
     }
   }
 }

@@ -36,13 +36,13 @@
   <div class="card">
     <h2 class="card-title-plain">Recent Sessions</h2>
 
-    <div class="empty-state" *ngIf="recentSessions.length === 0">
+    <div class="empty-state" *ngIf="recentSessions().length === 0">
       <span class="material-icons">event_busy</span>
       <p>No recent sessions yet.</p>
     </div>
 
-    <div class="session-list" *ngIf="recentSessions.length > 0">
-      <div class="session-item" *ngFor="let session of recentSessions">
+    <div class="session-list" *ngIf="recentSessions().length > 0">
+      <div class="session-item" *ngFor="let session of recentSessions()">
         <div class="session-info">
           <p class="session-subject">{{ session.subject }}</p>
           <p class="session-meta">{{ session.section }} • {{ session.date }}</p>

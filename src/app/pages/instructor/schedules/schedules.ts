@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 import { StudentApiService, type InstructorSchedule } from '../../../core/data/student-api.service';
@@ -243,7 +243,7 @@ import { StudentApiService, type InstructorSchedule } from '../../../core/data/s
 })
 export class SchedulesComponent {
   weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-  schedules: InstructorSchedule[] = [];
+  readonly schedules = signal<InstructorSchedule[]>([]);
   isModalOpen = false;
   isEditing = false;
   editingSchedule: InstructorSchedule | null = null;
@@ -256,7 +256,7 @@ export class SchedulesComponent {
 
   get groupedDays(): { day: string; items: InstructorSchedule[] }[] {
     const grouped: Record<string, InstructorSchedule[]> = {};
-    this.schedules.forEach((item) => {
+    this.schedules().forEach((item) => {
       grouped[item.day] ??= [];
       grouped[item.day].push(item);
     });
@@ -299,7 +299,7 @@ export class SchedulesComponent {
     } catch {
       // Keep UI update even if backend call fails.
     }
-    this.schedules = this.schedules.filter((schedule) => schedule.id !== item.id);
+    this.schedules.set(this.schedules().filter((schedule) => schedule.id !== item.id));
   }
 
   closeModal(): void {
@@ -325,20 +325,24 @@ export class SchedulesComponent {
     if (this.isEditing && this.editingSchedule) {
       try {
         const updated = await this.api.updateInstructorSchedule(this.editingSchedule.id, cleaned);
-        this.schedules = this.schedules.map((item) =>
-          item.id === this.editingSchedule?.id ? updated : item
+        this.schedules.set(
+          this.schedules().map((item) =>
+            item.id === this.editingSchedule?.id ? updated : item
+          )
         );
       } catch {
-        this.schedules = this.schedules.map((item) =>
-          item.id === this.editingSchedule?.id ? cleaned : item
+        this.schedules.set(
+          this.schedules().map((item) =>
+            item.id === this.editingSchedule?.id ? cleaned : item
+          )
         );
       }
     } else {
       try {
         const created = await this.api.addInstructorSchedule(cleaned);
-        this.schedules = [...this.schedules, created];
+        this.schedules.set([...this.schedules(), created]);
       } catch {
-        this.schedules = [...this.schedules, cleaned];
+        this.schedules.set([...this.schedules(), cleaned]);
       }
     }
 
@@ -358,9 +362,9 @@ export class SchedulesComponent {
 
   private async loadSchedules(): Promise<void> {
     try {
-      this.schedules = await this.api.getInstructorSchedules();
+      this.schedules.set(await this.api.getInstructorSchedules());
     } catch {
-      this.schedules = [];
+      this.schedules.set([]);
     }
   }
 }

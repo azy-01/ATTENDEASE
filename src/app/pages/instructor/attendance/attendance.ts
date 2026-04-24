@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StudentApiService, type InstructorSession } from '../../../core/data/student-api.service';
@@ -36,7 +36,7 @@ export class AttendanceComponent {
     'Capstone Project',
   ];
 
-  recentSessions: InstructorSession[] = [];
+  readonly recentSessions = signal<InstructorSession[]>([]);
 
   constructor(private readonly api: StudentApiService) {
     void this.loadSessions();
@@ -62,9 +62,9 @@ export class AttendanceComponent {
 
       try {
         const saved = await this.api.addInstructorSession(newSession);
-        this.recentSessions = [saved, ...this.recentSessions];
+        this.recentSessions.set([saved, ...this.recentSessions()]);
       } catch {
-        this.recentSessions = [newSession, ...this.recentSessions];
+        this.recentSessions.set([newSession, ...this.recentSessions()]);
       }
 
       // Reset form
@@ -75,9 +75,9 @@ export class AttendanceComponent {
 
   private async loadSessions(): Promise<void> {
     try {
-      this.recentSessions = await this.api.getInstructorSessions();
+      this.recentSessions.set(await this.api.getInstructorSessions());
     } catch {
-      this.recentSessions = [];
+      this.recentSessions.set([]);
     }
   }
 }

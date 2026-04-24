@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
 import { StudentApiService, type InstructorClass } from '../../../core/data/student-api.service';
 
@@ -13,7 +13,7 @@ import { StudentApiService, type InstructorClass } from '../../../core/data/stud
         <button type="button" (click)="openAddModal()">+ Add Class</button>
       </div>
       <div class="cards">
-        <article class="class-card" *ngFor="let classItem of classes">
+        <article class="class-card" *ngFor="let classItem of classes()">
           <div class="head">
             <strong>{{ classItem.name }}</strong>
             <span>{{ classItem.status }}</span>
@@ -227,7 +227,7 @@ import { StudentApiService, type InstructorClass } from '../../../core/data/stud
   `],
 })
 export class ClassesComponent {
-  classes: InstructorClass[] = [];
+  readonly classes = signal<InstructorClass[]>([]);
   isModalOpen = false;
   isEditMode = false;
   editingClassId = '';
@@ -302,7 +302,7 @@ export class ClassesComponent {
       this.formError = 'Please fill out Class Name, Program, and Year Level.';
       return;
     }
-    const duplicateName = this.classes.some((row) => {
+    const duplicateName = this.classes().some((row) => {
       const isSameRecord = this.isEditMode && row.id === this.editingClassId;
       return !isSameRecord && row.name.toLowerCase() === draft.name.toLowerCase();
     });
@@ -315,9 +315,9 @@ export class ClassesComponent {
       const newClass = { ...draft, id: this.createClassId() };
       try {
         const created = await this.api.addInstructorClass(newClass);
-        this.classes = [...this.classes, created];
+        this.classes.set([...this.classes(), created]);
       } catch {
-        this.classes = [...this.classes, newClass];
+        this.classes.set([...this.classes(), newClass]);
       }
       this.closeModal();
       return;
@@ -325,9 +325,13 @@ export class ClassesComponent {
 
     try {
       const updated = await this.api.updateInstructorClass(this.editingClassId, draft);
-      this.classes = this.classes.map((row) => (row.id !== this.editingClassId ? row : updated));
+      this.classes.set(
+        this.classes().map((row) => (row.id !== this.editingClassId ? row : updated))
+      );
     } catch {
-      this.classes = this.classes.map((row) => (row.id !== this.editingClassId ? row : draft));
+      this.classes.set(
+        this.classes().map((row) => (row.id !== this.editingClassId ? row : draft))
+      );
     }
     this.closeModal();
   }
@@ -356,7 +360,7 @@ export class ClassesComponent {
     } catch {
       // Keep UI responsive with local removal fallback.
     }
-    this.classes = this.classes.filter((row) => row.id !== classItem.id);
+    this.classes.set(this.classes().filter((row) => row.id !== classItem.id));
   }
 
   private createClassId(): string {
@@ -365,9 +369,9 @@ export class ClassesComponent {
 
   private async loadClasses(): Promise<void> {
     try {
-      this.classes = await this.api.getInstructorClasses();
+      this.classes.set(await this.api.getInstructorClasses());
     } catch {
-      this.classes = [];
+      this.classes.set([]);
     }
   }
 }

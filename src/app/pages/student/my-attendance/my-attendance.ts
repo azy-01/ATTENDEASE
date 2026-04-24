@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StudentApiService, type AttendanceRecord } from '../../../core/data/student-api.service';
@@ -16,7 +16,7 @@ export class MyAttendanceComponent {
   fromDate = '';
   toDate = '';
 
-  private allRecords: AttendanceRecord[] = [];
+  private readonly allRecords = signal<AttendanceRecord[]>([]);
 
   constructor(private readonly studentApi: StudentApiService) {
     void this.loadAttendanceRecords();
@@ -30,7 +30,7 @@ export class MyAttendanceComponent {
     const from = this.fromDate ? new Date(this.fromDate) : null;
     const to = this.toDate ? new Date(this.toDate) : null;
 
-    return this.allRecords.filter((record) => {
+    return this.allRecords().filter((record) => {
       const matchesSubject = !this.selectedSubject || record.subject === this.selectedSubject;
       const matchesStatus = !this.selectedStatus || record.status === this.selectedStatus;
       const recordDate = new Date(record.date);
@@ -42,7 +42,7 @@ export class MyAttendanceComponent {
   }
 
   get subjects(): string[] {
-    return [...new Set(this.allRecords.map((record) => record.subject))];
+    return [...new Set(this.allRecords().map((record) => record.subject))];
   }
 
   clearFilters(): void {
@@ -54,9 +54,9 @@ export class MyAttendanceComponent {
 
   private async loadAttendanceRecords(): Promise<void> {
     try {
-      this.allRecords = await this.studentApi.getAttendanceRecords();
+      this.allRecords.set(await this.studentApi.getAttendanceRecords());
     } catch {
-      this.allRecords = [];
+      this.allRecords.set([]);
     }
   }
 }
