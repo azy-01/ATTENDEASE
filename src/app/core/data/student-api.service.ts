@@ -1,6 +1,17 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { inject, Injectable, InjectionToken } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { Injectable } from '@angular/core';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  getFirestore,
+  query,
+  setDoc,
+  where,
+  type Firestore
+} from 'firebase/firestore';
+import { getApps, initializeApp } from 'firebase/app';
+import { environment } from '../../../environments/environment';
 
 export interface ScheduleItem {
   day: string;
@@ -19,7 +30,7 @@ export interface AttendanceRecord {
 }
 
 export interface StudentProfile {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
 }
@@ -64,117 +75,128 @@ export interface InstructorAccount {
   email: string;
 }
 
-export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
-
 @Injectable({ providedIn: 'root' })
 export class StudentApiService {
-  private readonly http = inject(HttpClient);
-  private readonly apiBaseUrl = inject(API_BASE_URL);
+  private readonly db: Firestore = getFirestore(
+    getApps()[0] ?? initializeApp(environment.firebase)
+  );
 
   getSchedules(): Promise<ScheduleItem[]> {
-    return firstValueFrom(this.http.get<ScheduleItem[]>(`${this.apiBaseUrl}/schedules`));
+    return this.listCollection<ScheduleItem>('schedules');
   }
 
   getAttendanceRecords(): Promise<AttendanceRecord[]> {
-    return firstValueFrom(
-      this.http.get<AttendanceRecord[]>(`${this.apiBaseUrl}/attendanceRecords`)
-    );
+    return this.listCollection<AttendanceRecord>('attendanceRecords');
   }
 
   getStudentProfile(email?: string): Promise<StudentProfile | null> {
-    let params = new HttpParams();
-    if (email) params = params.set('email', email);
+    if (!email) {
+      return this.listCollection<StudentProfile>('students').then((students) => students[0] ?? null);
+    }
 
-    return firstValueFrom(
-      this.http.get<StudentProfile[]>(`${this.apiBaseUrl}/students`, { params })
-    ).then((students) => students[0] ?? null);
+    const studentsRef = collection(this.db, 'students');
+    const studentsQuery = query(studentsRef, where('email', '==', email));
+    return getDocs(studentsQuery).then((snapshot) => {
+      const firstDoc = snapshot.docs[0];
+      if (!firstDoc) return null;
+      const data = firstDoc.data() as Omit<StudentProfile, 'id'> & Partial<Pick<StudentProfile, 'id'>>;
+      return {
+        id: String(data.id ?? firstDoc.id),
+        fullName: data.fullName ?? '',
+        email: data.email ?? ''
+      };
+    });
   }
 
   getInstructorClasses(): Promise<InstructorClass[]> {
-    return firstValueFrom(this.http.get<InstructorClass[]>(`${this.apiBaseUrl}/instructorClasses`));
+    return this.listCollection<InstructorClass>('instructorClasses');
   }
 
   addInstructorClass(payload: InstructorClass): Promise<InstructorClass> {
-    return firstValueFrom(
-      this.http.post<InstructorClass>(`${this.apiBaseUrl}/instructorClasses`, payload)
-    );
+    const id = payload.id || doc(collection(this.db, 'instructorClasses')).id;
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorClasses', id), next).then(() => next);
   }
 
   updateInstructorClass(id: string, payload: InstructorClass): Promise<InstructorClass> {
-    return firstValueFrom(
-      this.http.put<InstructorClass>(`${this.apiBaseUrl}/instructorClasses/${id}`, payload)
-    );
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorClasses', id), next, { merge: true }).then(() => next);
   }
 
   deleteInstructorClass(id: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`${this.apiBaseUrl}/instructorClasses/${id}`));
+    return deleteDoc(doc(this.db, 'instructorClasses', id));
   }
 
   getInstructorStudents(): Promise<InstructorStudent[]> {
-    return firstValueFrom(
-      this.http.get<InstructorStudent[]>(`${this.apiBaseUrl}/instructorStudents`)
-    );
+    return this.listCollection<InstructorStudent>('instructorStudents');
   }
 
   addInstructorStudent(payload: InstructorStudent): Promise<InstructorStudent> {
-    return firstValueFrom(
-      this.http.post<InstructorStudent>(`${this.apiBaseUrl}/instructorStudents`, payload)
-    );
+    const id = payload.id || doc(collection(this.db, 'instructorStudents')).id;
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorStudents', id), next).then(() => next);
   }
 
   updateInstructorStudent(id: string, payload: InstructorStudent): Promise<InstructorStudent> {
-    return firstValueFrom(
-      this.http.put<InstructorStudent>(`${this.apiBaseUrl}/instructorStudents/${id}`, payload)
-    );
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorStudents', id), next, { merge: true }).then(() => next);
   }
 
   deleteInstructorStudent(id: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`${this.apiBaseUrl}/instructorStudents/${id}`));
+    return deleteDoc(doc(this.db, 'instructorStudents', id));
   }
 
   getInstructorSchedules(): Promise<InstructorSchedule[]> {
-    return firstValueFrom(
-      this.http.get<InstructorSchedule[]>(`${this.apiBaseUrl}/instructorSchedules`)
-    );
+    return this.listCollection<InstructorSchedule>('instructorSchedules');
   }
 
   addInstructorSchedule(payload: InstructorSchedule): Promise<InstructorSchedule> {
-    return firstValueFrom(
-      this.http.post<InstructorSchedule>(`${this.apiBaseUrl}/instructorSchedules`, payload)
-    );
+    const id = payload.id || doc(collection(this.db, 'instructorSchedules')).id;
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorSchedules', id), next).then(() => next);
   }
 
   updateInstructorSchedule(id: string, payload: InstructorSchedule): Promise<InstructorSchedule> {
-    return firstValueFrom(
-      this.http.put<InstructorSchedule>(`${this.apiBaseUrl}/instructorSchedules/${id}`, payload)
-    );
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorSchedules', id), next, { merge: true }).then(() => next);
   }
 
   deleteInstructorSchedule(id: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`${this.apiBaseUrl}/instructorSchedules/${id}`));
+    return deleteDoc(doc(this.db, 'instructorSchedules', id));
   }
 
   getInstructorSessions(): Promise<InstructorSession[]> {
-    return firstValueFrom(
-      this.http.get<InstructorSession[]>(`${this.apiBaseUrl}/instructorSessions`)
-    );
+    return this.listCollection<InstructorSession>('instructorSessions');
   }
 
   addInstructorSession(payload: InstructorSession): Promise<InstructorSession> {
-    return firstValueFrom(
-      this.http.post<InstructorSession>(`${this.apiBaseUrl}/instructorSessions`, payload)
-    );
+    const id = payload.id || doc(collection(this.db, 'instructorSessions')).id;
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorSessions', id), next).then(() => next);
   }
 
   getInstructorAccount(): Promise<InstructorAccount | null> {
-    return firstValueFrom(
-      this.http.get<InstructorAccount[]>(`${this.apiBaseUrl}/instructorAccounts`)
-    ).then((accounts) => accounts[0] ?? null);
+    return this.listCollection<InstructorAccount>('instructorAccounts').then(
+      (accounts) => accounts[0] ?? null
+    );
   }
 
   updateInstructorAccount(id: string, payload: InstructorAccount): Promise<InstructorAccount> {
-    return firstValueFrom(
-      this.http.put<InstructorAccount>(`${this.apiBaseUrl}/instructorAccounts/${id}`, payload)
+    const next = { ...payload, id };
+    return setDoc(doc(this.db, 'instructorAccounts', id), next, { merge: true }).then(() => next);
+  }
+
+  private listCollection<T>(collectionName: string): Promise<T[]> {
+    const ref = collection(this.db, collectionName);
+    return getDocs(ref).then((snapshot) =>
+      snapshot.docs.map((item) => {
+        const data = item.data() as T;
+        if (typeof data === 'object' && data !== null) {
+          const withId = data as T & { id?: string };
+          return { ...withId, id: withId.id ?? item.id } as T;
+        }
+        return data;
+      })
     );
   }
 }
