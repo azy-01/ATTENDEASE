@@ -12,8 +12,8 @@ import { FormsModule } from '@angular/forms';
 export class StudentAccountComponent {
   private readonly profileStorageKey = 'student-account-profile';
 
-  fullName = 'NRCK';
-  email = 'nerickjanio77@gmail.com';
+  fullName = 'Tiesha Kate D. Regular';
+  email = 'regular.tieshakated@gmail.com';
   saveMessage = '';
 
   constructor() {

@@ -21,6 +21,7 @@ export class StudentSidebarComponent implements OnInit {
   @Output() closeSidebar = new EventEmitter<void>();
   isDarkMode = false;
   private readonly themeStorageKey = 'attendease-theme';
+  private readonly authSessionStorageKey = 'attendease-auth-session';
 
   // Student view keeps only learner-specific pages.
   navItems: NavItem[] = [
@@ -67,6 +68,7 @@ export class StudentSidebarComponent implements OnInit {
       return;
     }
 
+    localStorage.removeItem(this.authSessionStorageKey);
     this.router.navigate(['/']);
   }
 }

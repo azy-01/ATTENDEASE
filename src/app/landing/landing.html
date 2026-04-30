@@ -398,6 +398,7 @@
         <span *ngIf="!isLoading">Create Account</span>
         <span *ngIf="isLoading" class="loader"></span>
       </button>
+      <div class="field-error" *ngIf="formErrors['auth']">{{ formErrors['auth'] }}</div>
 
       <p class="modal-switch">Already have an account? <a (click)="setView('login')">Log in</a></p>
     </ng-container>
@@ -453,6 +454,7 @@
         <span *ngIf="!isLoading">Create Account</span>
         <span *ngIf="isLoading" class="loader"></span>
       </button>
+      <div class="field-error" *ngIf="formErrors['auth']">{{ formErrors['auth'] }}</div>
 
       <p class="modal-switch">Already have an account? <a (click)="setView('login')">Log in</a></p>
     </ng-container>

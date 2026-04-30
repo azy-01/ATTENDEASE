@@ -57,6 +57,7 @@ export interface InstructorSchedule {
   day: string;
   time: string;
   title: string;
+  section: string;
   meta: string;
   mode: 'Face-To-Face' | 'Online';
 }
@@ -75,11 +76,146 @@ export interface InstructorAccount {
   email: string;
 }
 
+export interface AuthAccount {
+  id: string;
+  role: 'instructor' | 'student';
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  password: string;
+}
+
+interface DefaultAccountSeed {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class StudentApiService {
   private readonly db: Firestore = getFirestore(
     getApps()[0] ?? initializeApp(environment.firebase)
   );
+  private readonly defaultStudentAccount: DefaultAccountSeed = {
+    id: 'std-acc-1',
+    fullName: 'Tiesha Kate D. Regular',
+    email: 'regular.tieshakated@gmail.com'
+  };
+  private readonly defaultInstructorAccount: DefaultAccountSeed = {
+    id: 'ins-acc-1',
+    fullName: 'Azryth Sacuan',
+    email: 'sacuan.azryth0@gmail.com'
+  };
+  private readonly defaultAuthAccounts: AuthAccount[] = [
+    {
+      id: 'auth-ins-1',
+      role: 'instructor',
+      firstName: 'Instructor',
+      lastName: 'Demo',
+      fullName: 'Instructor Demo',
+      email: 'instructor@gmail.com',
+      password: 'Instructor123'
+    },
+    {
+      id: 'auth-std-1',
+      role: 'student',
+      firstName: 'Student',
+      lastName: 'Demo',
+      fullName: 'Student Demo',
+      email: 'student@email.com',
+      password: 'Student123'
+    },
+    {
+      id: 'auth-std-2',
+      role: 'student',
+      firstName: 'Student',
+      lastName: 'Gmail',
+      fullName: 'Student Gmail',
+      email: 'student@gmail.com',
+      password: 'Student123'
+    }
+  ];
+
+  ensureDefaultAccounts(): Promise<void> {
+    const studentWrite = setDoc(
+      doc(this.db, 'students', this.defaultStudentAccount.id),
+      this.defaultStudentAccount,
+      { merge: true }
+    );
+    const instructorWrite = setDoc(
+      doc(this.db, 'instructorAccounts', this.defaultInstructorAccount.id),
+      this.defaultInstructorAccount,
+      { merge: true }
+    );
+    const authWrites = this.defaultAuthAccounts.map((account) =>
+      setDoc(doc(this.db, 'authAccounts', account.id), account, { merge: true })
+    );
+    return Promise.all([studentWrite, instructorWrite, ...authWrites]).then(() => undefined);
+  }
+
+  async registerAccount(payload: {
+    role: 'instructor' | 'student';
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+  }): Promise<AuthAccount> {
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    const existing = await this.findAuthAccountByEmail(payload.role, normalizedEmail);
+    if (existing) {
+      throw new Error('Account already exists for this role and email.');
+    }
+
+    const id = doc(collection(this.db, 'authAccounts')).id;
+    const nextAccount: AuthAccount = {
+      id,
+      role: payload.role,
+      firstName: payload.firstName.trim(),
+      lastName: payload.lastName.trim(),
+      fullName: `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim(),
+      email: normalizedEmail,
+      password: payload.password
+    };
+    await setDoc(doc(this.db, 'authAccounts', id), nextAccount);
+
+    if (payload.role === 'student') {
+      await setDoc(
+        doc(this.db, 'students', `std-${id}`),
+        {
+          id: `std-${id}`,
+          fullName: nextAccount.fullName,
+          email: nextAccount.email
+        },
+        { merge: true }
+      );
+    } else {
+      await setDoc(
+        doc(this.db, 'instructorAccounts', `ins-${id}`),
+        {
+          id: `ins-${id}`,
+          fullName: nextAccount.fullName,
+          email: nextAccount.email
+        },
+        { merge: true }
+      );
+    }
+
+    return nextAccount;
+  }
+
+  async authenticateAccount(payload: {
+    role: 'instructor' | 'student';
+    email: string;
+    password: string;
+  }): Promise<AuthAccount | null> {
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    const account = await this.findAuthAccountByEmail(payload.role, normalizedEmail);
+    if (!account) {
+      return null;
+    }
+    return account.password === payload.password ? account : null;
+  }
 
   getSchedules(): Promise<ScheduleItem[]> {
     return this.listCollection<ScheduleItem>('schedules');
@@ -150,6 +286,32 @@ export class StudentApiService {
     return this.listCollection<InstructorSchedule>('instructorSchedules');
   }
 
+  async getStudentSchedulesByEmail(email: string): Promise<ScheduleItem[]> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return [];
+
+    const [students, schedules] = await Promise.all([
+      this.getInstructorStudents(),
+      this.getInstructorSchedules()
+    ]);
+
+    const student = students.find(
+      (item) => item.email.trim().toLowerCase() === normalizedEmail
+    );
+    const studentSection = student?.section?.trim().toLowerCase() ?? '';
+    if (!studentSection) return [];
+
+    return schedules
+      .filter((item) => (item.section ?? '').trim().toLowerCase() === studentSection)
+      .map((item) => ({
+        day: item.day,
+        time: item.time,
+        subject: item.title,
+        meta: `${item.section ?? ''} - ${item.meta}`,
+        mode: item.mode
+      }));
+  }
+
   addInstructorSchedule(payload: InstructorSchedule): Promise<InstructorSchedule> {
     const id = payload.id || doc(collection(this.db, 'instructorSchedules')).id;
     const next = { ...payload, id };
@@ -198,5 +360,27 @@ export class StudentApiService {
         return data;
       })
     );
+  }
+
+  private findAuthAccountByEmail(
+    role: 'instructor' | 'student',
+    email: string
+  ): Promise<AuthAccount | null> {
+    const authRef = collection(this.db, 'authAccounts');
+    const authQuery = query(authRef, where('role', '==', role), where('email', '==', email));
+    return getDocs(authQuery).then((snapshot) => {
+      const firstDoc = snapshot.docs[0];
+      if (!firstDoc) return null;
+      const data = firstDoc.data() as Omit<AuthAccount, 'id'> & Partial<Pick<AuthAccount, 'id'>>;
+      return {
+        id: String(data.id ?? firstDoc.id),
+        role: data.role ?? role,
+        firstName: data.firstName ?? '',
+        lastName: data.lastName ?? '',
+        fullName: data.fullName ?? '',
+        email: data.email ?? '',
+        password: data.password ?? ''
+      };
+    });
   }
 }

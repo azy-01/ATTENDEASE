@@ -58,6 +58,11 @@ import { StudentApiService, type InstructorSchedule } from '../../../core/data/s
         </label>
 
         <label>
+          Section
+          <input type="text" [(ngModel)]="draftSchedule.section" placeholder="BSIT-1A" />
+        </label>
+
+        <label>
           Details
           <input type="text" [(ngModel)]="draftSchedule.meta" placeholder="BSIT-1A • 101" />
         </label>
@@ -313,12 +318,13 @@ export class SchedulesComponent {
       title: this.draftSchedule.title.trim(),
       day: this.draftSchedule.day,
       time: this.draftSchedule.time.trim(),
+      section: this.draftSchedule.section.trim(),
       meta: this.draftSchedule.meta.trim(),
       mode: this.draftSchedule.mode,
     };
 
-    if (!cleaned.title || !cleaned.time || !cleaned.meta) {
-      this.modalError = 'Please fill in subject, time, and details.';
+    if (!cleaned.title || !cleaned.time || !cleaned.section || !cleaned.meta) {
+      this.modalError = 'Please fill in subject, time, section, and details.';
       return;
     }
 
@@ -355,6 +361,7 @@ export class SchedulesComponent {
       day: 'MONDAY',
       time: '',
       title: '',
+      section: '',
       meta: '',
       mode: 'Face-To-Face',
     };

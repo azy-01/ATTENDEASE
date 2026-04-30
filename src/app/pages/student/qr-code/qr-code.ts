@@ -11,8 +11,8 @@ import { StudentApiService } from '../../../core/data/student-api.service';
 export class StudentQrCodeComponent {
   private readonly profileStorageKey = 'student-account-profile';
 
-  readonly fullName = signal('NRCK');
-  readonly email = signal('nerickjanio77@gmail.com');
+  readonly fullName = signal('Tiesha Kate D. Regular');
+  readonly email = signal('regular.tieshakated@gmail.com');
   readonly qrImage = signal('');
   readonly isGeneratingQr = signal(true);
 

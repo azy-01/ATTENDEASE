@@ -14,9 +14,10 @@ import Swal from 'sweetalert2';
 export class StudentSettingsComponent {
   private readonly profileStorageKey = 'student-account-profile';
   private readonly settingsStorageKey = 'student-settings-preferences';
+  private readonly authSessionStorageKey = 'attendease-auth-session';
 
-  fullName = 'NRCK';
-  email = 'nerickjanio77@gmail.com';
+  fullName = 'Tiesha Kate D. Regular';
+  email = 'regular.tieshakated@gmail.com';
   emailNotifications = true;
   attendanceReminders = true;
   saveMessage = '';
@@ -105,6 +106,7 @@ export class StudentSettingsComponent {
       return;
     }
 
+    localStorage.removeItem(this.authSessionStorageKey);
     this.router.navigate(['/']);
   }
 }

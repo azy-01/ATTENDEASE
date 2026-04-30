@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { StudentApiService } from '../core/data/student-api.service';
 
 export interface Student {
   name: string;
@@ -64,12 +65,6 @@ export interface StudentSignup {
   password: string;
 }
 
-export interface MockCredential {
-  role: 'instructor' | 'student';
-  email: string;
-  password: string;
-}
-
 @Component({
   selector: 'app-landing',
   standalone: true,
@@ -78,7 +73,13 @@ export interface MockCredential {
   styleUrls: ['./landing.scss']
 })
 export class LandingComponent implements OnInit, OnDestroy {
-  constructor(private router: Router) { }
+  private readonly studentProfileStorageKey = 'student-account-profile';
+  private readonly authSessionStorageKey = 'attendease-auth-session';
+
+  constructor(
+    private readonly router: Router,
+    private readonly studentApi: StudentApiService
+  ) { }
   private readonly themeStorageKey = 'attendease-theme';
 
   // ── Navbar ──────────────────────────────────────────────
@@ -135,13 +136,6 @@ export class LandingComponent implements OnInit, OnDestroy {
   // ── Auth Modal ────────────────────────────────────────────
   showModal = false;
   authView: AuthView = 'login';
-
-  // Mock credentials for local demo/testing login.
-  private readonly mockCredentials: MockCredential[] = [
-    { role: 'instructor', email: 'instructor@gmail.com', password: 'Instructor123' },
-    { role: 'student', email: 'student@email.com', password: 'Student123' },
-    { role: 'student', email: 'student@gmail.com', password: 'Student123' },
-  ];
 
   showLoginPassword = false;
   showPassword = false;
@@ -262,6 +256,17 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.studentForm = { firstName: '', lastName: '', email: '', password: '' };
   }
 
+  private storeAuthSession(role: 'instructor' | 'student', fullName: string, email: string): void {
+    localStorage.setItem(
+      this.authSessionStorageKey,
+      JSON.stringify({
+        role,
+        fullName,
+        email: email.trim().toLowerCase()
+      })
+    );
+  }
+
   // ── Validation ────────────────────────────────────────────
   private isValidGmail(email: string): boolean {
     return /^[^\s@]+@gmail\.com$/.test(email);
@@ -272,7 +277,7 @@ export class LandingComponent implements OnInit, OnDestroy {
   }
 
   // ── Login submit ──────────────────────────────────────────
-  onLogin(): void {
+  async onLogin(): Promise<void> {
     this.formErrors = {};
     if (!this.loginForm.role) this.formErrors['role'] = 'Please select a role.';
 
@@ -281,35 +286,52 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (!this.loginForm.password) this.formErrors['password'] = 'Password is required.';
     if (Object.keys(this.formErrors).length) return;
 
-    const normalizedEmail = this.loginForm.email.trim().toLowerCase();
-    const normalizedPassword = this.loginForm.password.trim();
-    const matchedUser = this.mockCredentials.find(
-      (credential) =>
-        credential.role === this.loginForm.role &&
-        credential.email.toLowerCase() === normalizedEmail &&
-        credential.password === normalizedPassword
-    );
-
-    if (!matchedUser) {
-      this.formErrors['auth'] = 'Invalid role, email, or password.';
+    const role = this.loginForm.role;
+    if (role !== 'instructor' && role !== 'student') {
+      this.formErrors['role'] = 'Please select a valid role.';
       return;
     }
 
     this.isLoading = true;
-    const role = this.loginForm.role;
-    setTimeout(() => {
+    try {
+      const authenticatedUser = await this.studentApi.authenticateAccount({
+        role,
+        email: this.loginForm.email,
+        password: this.loginForm.password.trim()
+      });
+
+      if (!authenticatedUser) {
+        this.formErrors['auth'] = 'Invalid role, email, or password.';
+        return;
+      }
+
+      this.storeAuthSession(role, authenticatedUser.fullName, authenticatedUser.email);
+      if (role === 'student') {
+        localStorage.setItem(
+          this.studentProfileStorageKey,
+          JSON.stringify({
+            fullName: authenticatedUser.fullName,
+            email: authenticatedUser.email
+          })
+        );
+      }
+
       this.isLoading = false;
       this.closeModal();
       if (role === 'instructor') {
-        this.router.navigate(['/instructor/overview']); // ← navigate to dashboard
+        void this.router.navigate(['/instructor/overview']);
       } else {
-        this.router.navigate(['/student/overview']);
+        void this.router.navigate(['/student/overview']);
       }
-    }, 1200);
+    } catch {
+      this.formErrors['auth'] = 'Unable to log in right now. Please try again.';
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   // ── Instructor signup ─────────────────────────────────────
-  onInstructorSignup(): void {
+  async onInstructorSignup(): Promise<void> {
     this.formErrors = {};
     const f = this.instructorForm;
     if (!f.firstName) this.formErrors['firstName'] = 'First name is required.';
@@ -323,15 +345,28 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (Object.keys(this.formErrors).length) return;
 
     this.isLoading = true;
-    setTimeout(() => {
-      this.isLoading = false;
+    try {
+      const account = await this.studentApi.registerAccount({
+        role: 'instructor',
+        firstName: f.firstName,
+        lastName: f.lastName,
+        email: f.gmail,
+        password: f.password
+      });
+      this.storeAuthSession('instructor', account.fullName, account.email);
       this.closeModal();
-      this.router.navigate(['/instructor/overview']);
-    }, 1200);
+      this.showToast(`🎉 Account created! Welcome, ${f.firstName}!`, '#4F46E5', 'rgba(79,70,229,.4)');
+      void this.router.navigate(['/instructor/overview']);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to create account right now.';
+      this.formErrors['auth'] = message;
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   // ── Student signup ────────────────────────────────────────
-  onStudentSignup(): void {
+  async onStudentSignup(): Promise<void> {
     this.formErrors = {};
     const f = this.studentForm;
     if (!f.firstName) this.formErrors['firstName'] = 'First name is required.';
@@ -342,11 +377,31 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (Object.keys(this.formErrors).length) return;
 
     this.isLoading = true;
-    setTimeout(() => {
-      this.isLoading = false;
+    try {
+      const account = await this.studentApi.registerAccount({
+        role: 'student',
+        firstName: f.firstName,
+        lastName: f.lastName,
+        email: f.email,
+        password: f.password
+      });
+      this.storeAuthSession('student', account.fullName, account.email);
+      localStorage.setItem(
+        this.studentProfileStorageKey,
+        JSON.stringify({
+          fullName: account.fullName,
+          email: account.email
+        })
+      );
       this.closeModal();
       this.showToast(`🎉 Account created! Welcome, ${f.firstName}!`, '#4F46E5', 'rgba(79,70,229,.4)');
-    }, 1200);
+      void this.router.navigate(['/student/overview']);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to create account right now.';
+      this.formErrors['auth'] = message;
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   // ── Scroll reveal ─────────────────────────────────────────

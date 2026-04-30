@@ -18,15 +18,17 @@ import { filter, Subscription } from 'rxjs';
   styleUrls: ['./student-layout.scss'],
 })
 export class StudentLayoutComponent implements OnInit, OnDestroy {
+  private readonly studentProfileStorageKey = 'student-account-profile';
   sidebarOpen: boolean = false;
   pageTitle: string = 'Overview';
-  pageSubtitle: string = 'Welcome, NRCK';
-  userName: string = 'NRCK';
+  pageSubtitle: string = 'Welcome, Tiesha Kate D. Regular';
+  userName: string = 'Tiesha Kate D. Regular';
   private routeSub?: Subscription;
 
   constructor(private router: Router) {}
 
   ngOnInit(): void {
+    this.loadStudentProfile();
     this.updatePageTitle(this.router.url);
     this.routeSub = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
@@ -38,6 +40,20 @@ export class StudentLayoutComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.routeSub?.unsubscribe();
+  }
+
+  private loadStudentProfile(): void {
+    const savedProfile = localStorage.getItem(this.studentProfileStorageKey);
+    if (!savedProfile) return;
+
+    try {
+      const parsedProfile = JSON.parse(savedProfile) as { fullName?: string };
+      if (parsedProfile.fullName?.trim()) {
+        this.userName = parsedProfile.fullName.trim();
+      }
+    } catch {
+      localStorage.removeItem(this.studentProfileStorageKey);
+    }
   }
 
   private updatePageTitle(url: string): void {
@@ -58,7 +74,7 @@ export class StudentLayoutComponent implements OnInit, OnDestroy {
       this.pageSubtitle = 'Manage your profile and preferences';
     } else {
       this.pageTitle = 'Overview';
-      this.pageSubtitle = 'Welcome, NRCK';
+      this.pageSubtitle = `Welcome, ${this.userName}`;
     }
   }
 }
