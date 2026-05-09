@@ -1,5 +1,84 @@
 <div class="my-attendance-page">
   <div class="card">
+    <div class="submit-row">
+      <h3>Take Attendance</h3>
+      <p *ngIf="hasActiveSession; else noActiveSession">
+        Active session: <strong>{{ activeSessionLabel }}</strong>
+      </p>
+      <p class="muted" *ngIf="hasActiveSession && attendanceMethod === 'manual' && activeSessionManualCode">
+        Manual code for this session: <strong>{{ activeSessionManualCode }}</strong>
+      </p>
+      <ng-template #noActiveSession>
+        <p class="muted">No active instructor session yet. Ask your instructor to start the session.</p>
+      </ng-template>
+
+      <div class="method-switch">
+        <button type="button" [class.active]="attendanceMethod === 'qr'" (click)="onMethodChange('qr')" [disabled]="!hasActiveSession">
+          QR Code
+        </button>
+        <button type="button" [class.active]="attendanceMethod === 'manual'" (click)="onMethodChange('manual')" [disabled]="!hasActiveSession">
+          Manual
+        </button>
+      </div>
+
+      <textarea
+        *ngIf="attendanceMethod === 'qr'"
+        [(ngModel)]="qrPayloadInput"
+        [disabled]="!hasActiveSession || isSubmitting"
+        placeholder="Paste scanned QR payload here"
+      ></textarea>
+
+      <div class="scanner-actions" *ngIf="attendanceMethod === 'qr'">
+        <button
+          type="button"
+          class="secondary-btn"
+          (click)="startQrScanner()"
+          [disabled]="!hasActiveSession || isSubmitting || !scannerSupported || isScannerOpen || isScannerStarting"
+        >
+          {{ isScannerStarting ? 'Starting Camera...' : 'Scan via Camera' }}
+        </button>
+        <button
+          type="button"
+          class="secondary-btn"
+          (click)="stopQrScanner()"
+          [disabled]="!isScannerOpen"
+        >
+          Stop Scanner
+        </button>
+      </div>
+
+      <p class="scanner-state starting" *ngIf="attendanceMethod === 'qr' && isScannerStarting">
+        <span class="dot"></span>
+        Starting camera...
+      </p>
+      <p class="scanner-state running" *ngIf="attendanceMethod === 'qr' && isScannerOpen">
+        <span class="dot"></span>
+        Camera is running
+      </p>
+
+      <p class="muted" *ngIf="attendanceMethod === 'qr' && !scannerSupported">
+        Camera scanning is not supported on this browser. You can still paste the QR payload.
+      </p>
+
+      <p class="error" *ngIf="scannerError">{{ scannerError }}</p>
+      <p class="success" *ngIf="scannerStatus">{{ scannerStatus }}</p>
+
+      <input
+        *ngIf="attendanceMethod === 'manual'"
+        type="text"
+        [(ngModel)]="manualCodeInput"
+        [disabled]="!hasActiveSession || isSubmitting"
+        placeholder="Enter your manual attendance code"
+      />
+
+      <button type="button" class="submit-btn" (click)="submitAttendance()" [disabled]="!hasActiveSession || isSubmitting">
+        {{ isSubmitting ? 'Submitting...' : 'Submit Attendance' }}
+      </button>
+
+      <p class="error" *ngIf="submitError">{{ submitError }}</p>
+      <p class="success" *ngIf="submitSuccess">{{ submitSuccess }}</p>
+    </div>
+
     <div class="filters-row">
       <select [(ngModel)]="selectedSubject">
         <option value="">All Subjects</option>
@@ -42,6 +121,33 @@
       <ng-template #emptyState>
         <div class="empty-state">No records found</div>
       </ng-template>
+    </div>
+  </div>
+
+  <div class="scanner-modal-backdrop" *ngIf="attendanceMethod === 'qr' && (isScannerOpen || isScannerStarting)" (click)="stopQrScanner()">
+    <div class="scanner-modal" (click)="$event.stopPropagation()">
+      <div class="scanner-modal-header">
+        <h4>Scan QR Code</h4>
+        <button type="button" class="icon-close-btn" (click)="stopQrScanner()">Close</button>
+      </div>
+      <p class="scanner-modal-help" *ngIf="isScannerStarting">Starting camera. Allow permission in your browser prompt.</p>
+      <p class="scanner-modal-help" *ngIf="isScannerOpen">Camera is running. Place the QR code inside the frame.</p>
+
+      <div class="camera-picker" *ngIf="availableCameras.length">
+        <label for="cameraSelect">Camera Source</label>
+        <select id="cameraSelect" [(ngModel)]="selectedCameraId" (ngModelChange)="onCameraSelectionChange()">
+          <option *ngFor="let camera of availableCameras" [value]="camera.deviceId">{{ camera.label }}</option>
+        </select>
+      </div>
+
+      <div class="scanner-loading" *ngIf="isScannerStarting">
+        <span class="dot"></span>
+        Waiting for camera...
+      </div>
+
+      <div class="scanner-preview modal-preview" *ngIf="isScannerOpen">
+        <video #scannerVideo autoplay playsinline muted></video>
+      </div>
     </div>
   </div>
 </div>

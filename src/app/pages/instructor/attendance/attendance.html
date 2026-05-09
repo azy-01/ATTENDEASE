@@ -25,11 +25,34 @@
       </div>
     </div>
 
+    <div class="form-group manual-code-group">
+      <label>Manual Attendance Code (optional)</label>
+      <div class="manual-code-row">
+        <input
+          type="text"
+          [(ngModel)]="manualAttendanceCode"
+          placeholder="Set your own code or auto-generate"
+          [disabled]="isStarting || isGeneratingManualCode"
+        />
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="generateManualCode()"
+          [disabled]="isStarting || isGeneratingManualCode"
+        >
+          {{ isGeneratingManualCode ? 'Generating...' : 'Generate Unique Code' }}
+        </button>
+      </div>
+      <small>Students will use this code for manual attendance in the active session.</small>
+    </div>
+
     <button class="btn-primary" (click)="startSession()" [disabled]="!selectedSection || !selectedSubject || isStarting">
       <span class="material-icons">play_arrow</span>
       <span *ngIf="!isStarting">Start Session</span>
       <span *ngIf="isStarting" class="loader"></span>
     </button>
+    <p class="error-message" *ngIf="startError">{{ startError }}</p>
+    <p class="success-message" *ngIf="startSuccess">{{ startSuccess }}</p>
   </div>
 
   <!-- Recent Sessions Card -->
@@ -46,10 +69,23 @@
         <div class="session-info">
           <p class="session-subject">{{ session.subject }}</p>
           <p class="session-meta">{{ session.section }} • {{ session.date }}</p>
+          <p class="session-code" *ngIf="session.manualAttendanceCode">Manual code: {{ session.manualAttendanceCode }}</p>
         </div>
-        <span class="badge" [ngClass]="'badge-' + session.status">
-          {{ session.status }}
-        </span>
+        <div class="session-actions">
+          <span class="badge" [ngClass]="'badge-' + session.status">
+            {{ session.status }}
+          </span>
+          <button
+            *ngIf="session.status === 'active'"
+            class="btn-danger"
+            type="button"
+            (click)="endSession(session.id)"
+            [disabled]="endingSessionId === session.id"
+          >
+            <span *ngIf="endingSessionId !== session.id">End Session</span>
+            <span *ngIf="endingSessionId === session.id">Ending...</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>

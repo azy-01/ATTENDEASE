@@ -17,17 +17,32 @@ import { InstructorSidebarComponent } from '../instructor-sidebar/instructor-sid
   styleUrls: ['./instructor-layout.scss'],
 })
 export class InstructorLayoutComponent {
+  private readonly authSessionStorageKey = 'attendease-auth-session';
   sidebarOpen: boolean = false;
   pageTitle: string = 'Overview';
   userName: string = 'Azryth Sacuan';
 
   constructor(private router: Router) {
+    this.loadSignedInName();
     this.updatePageTitle(this.router.url);
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.updatePageTitle(event.urlAfterRedirects);
       }
     });
+  }
+
+  private loadSignedInName(): void {
+    const rawSession = localStorage.getItem(this.authSessionStorageKey);
+    if (!rawSession) return;
+    try {
+      const session = JSON.parse(rawSession) as { fullName?: string };
+      if (session.fullName?.trim()) {
+        this.userName = session.fullName.trim();
+      }
+    } catch {
+      localStorage.removeItem(this.authSessionStorageKey);
+    }
   }
 
   private updatePageTitle(url: string): void {
@@ -41,6 +56,9 @@ export class InstructorLayoutComponent {
       schedules: 'Schedules',
       reports: 'Reports',
       settings: 'Settings',
+      instructors: 'Account Creation',
+      'pending-account-approval': 'Pending Account Approval',
+      'instructor-accounts': 'Instructor Accounts',
       account: 'Account',
     };
     this.pageTitle = titles[segment] ?? 'Overview';

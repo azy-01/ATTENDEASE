@@ -71,11 +71,51 @@
     <!-- Right column -->
     <div class="overview-right">
 
-      <!-- Active Sessions -->
+      <!-- Assigned Teaching Load -->
       <div class="card">
-        <h2 class="card-title">Active Sessions</h2>
-        <div class="empty-state small" *ngIf="activeSessions.length === 0">
-          <p>No active sessions</p>
+        <h2 class="card-title">Assigned Classes</h2>
+        <ul class="assignment-list" *ngIf="assignedClasses.length > 0; else noAssignedClasses">
+          <li *ngFor="let item of assignedClasses">{{ item }}</li>
+        </ul>
+        <ng-template #noAssignedClasses>
+          <div class="empty-state small">
+            <p>No assigned classes</p>
+          </div>
+        </ng-template>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Assigned Subjects</h2>
+        <ul class="assignment-list" *ngIf="assignedSubjects.length > 0; else noAssignedSubjects">
+          <li *ngFor="let item of assignedSubjects">{{ item }}</li>
+        </ul>
+        <ng-template #noAssignedSubjects>
+          <div class="empty-state small">
+            <p>No assigned subjects</p>
+          </div>
+        </ng-template>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Recent Sessions</h2>
+        <ul class="assignment-list" *ngIf="recentSessions.length > 0; else noRecentSessions">
+          <li *ngFor="let item of recentSessions">{{ item }}</li>
+        </ul>
+        <ng-template #noRecentSessions>
+          <div class="empty-state small">
+            <p>No recent sessions yet.</p>
+          </div>
+        </ng-template>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Teaching Scope</h2>
+        <div class="empty-state small" *ngIf="assignedClasses.length === 0 && assignedSubjects.length === 0">
+          <p>Your admin can assign classes and subjects in Instructor Accounts.</p>
+        </div>
+        <div class="scope-summary" *ngIf="assignedClasses.length > 0 || assignedSubjects.length > 0">
+          <p><strong>Classes:</strong> {{ assignedClasses.length }}</p>
+          <p><strong>Subjects:</strong> {{ assignedSubjects.length }}</p>
         </div>
       </div>
 

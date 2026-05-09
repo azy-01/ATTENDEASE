@@ -16,7 +16,7 @@ import { StudentApiService, type InstructorStudent } from '../../../core/data/st
           [value]="searchTerm"
           (input)="onSearchInput($event)"
         />
-        <button type="button" (click)="openAddModal()">+ Add Student</button>
+        <button type="button" *ngIf="isAdmin" (click)="openAddModal()">+ Add Student</button>
       </div>
 
       <div class="table-wrap">
@@ -28,7 +28,7 @@ import { StudentApiService, type InstructorStudent } from '../../../core/data/st
               <th>Email</th>
               <th>Section</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th *ngIf="isAdmin">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -38,7 +38,7 @@ import { StudentApiService, type InstructorStudent } from '../../../core/data/st
               <td>{{ student.email }}</td>
               <td>{{ student.section }}</td>
               <td><span class="badge">active</span></td>
-              <td>
+              <td *ngIf="isAdmin">
                 <div class="actions">
                   <button type="button" class="action-btn" (click)="editStudent(student)" aria-label="Edit student">
                     ✎
@@ -53,7 +53,7 @@ import { StudentApiService, type InstructorStudent } from '../../../core/data/st
         </table>
       </div>
 
-      <div class="modal-backdrop" *ngIf="isEditModalOpen" (click)="closeEditModal()">
+      <div class="modal-backdrop" *ngIf="isAdmin && isEditModalOpen" (click)="closeEditModal()">
         <div class="modal-card" role="dialog" aria-modal="true" aria-label="Edit student" (click)="$event.stopPropagation()">
           <div class="modal-head">
             <h3>Edit Student</h3>
@@ -86,7 +86,7 @@ import { StudentApiService, type InstructorStudent } from '../../../core/data/st
         </div>
       </div>
 
-      <div class="modal-backdrop" *ngIf="isAddModalOpen" (click)="closeAddModal()">
+      <div class="modal-backdrop" *ngIf="isAdmin && isAddModalOpen" (click)="closeAddModal()">
         <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add student" (click)="$event.stopPropagation()">
           <div class="modal-head">
             <h3>Add Student</h3>
@@ -276,7 +276,11 @@ import { StudentApiService, type InstructorStudent } from '../../../core/data/st
   `],
 })
 export class StudentsComponent {
+  private readonly authSessionStorageKey = 'attendease-auth-session';
   readonly students = signal<InstructorStudent[]>([]);
+  isAdmin = false;
+  private role: 'instructor' | 'admin' | 'superadmin' | 'student' | '' = '';
+  private email = '';
   searchTerm = '';
   isEditModalOpen = false;
   isAddModalOpen = false;
@@ -297,6 +301,7 @@ export class StudentsComponent {
   };
 
   constructor(private readonly api: StudentApiService) {
+    this.resolveSession();
     void this.loadStudents();
   }
 
@@ -443,9 +448,40 @@ export class StudentsComponent {
 
   private async loadStudents(): Promise<void> {
     try {
-      this.students.set(await this.api.getInstructorStudents());
+      const allStudents = await this.api.getInstructorStudents();
+      if (this.role !== 'instructor' || !this.email) {
+        this.students.set(allStudents);
+        return;
+      }
+
+      const [account, allClasses] = await Promise.all([
+        this.api.getAuthAccountByEmail('instructor', this.email),
+        this.api.getInstructorClasses()
+      ]);
+      const allowedClassIds = account?.allowedClassIds ?? [];
+      const scopedStudentIds = new Set(
+        allClasses
+          .filter((classItem) => allowedClassIds.includes(classItem.id))
+          .flatMap((classItem) => classItem.assignedStudentIds ?? [])
+      );
+      this.students.set(
+        allStudents.filter((student) => scopedStudentIds.has(student.id))
+      );
     } catch {
       this.students.set([]);
+    }
+  }
+
+  private resolveSession(): void {
+    const rawSession = localStorage.getItem(this.authSessionStorageKey);
+    if (!rawSession) return;
+    try {
+      const parsed = JSON.parse(rawSession) as { role?: 'instructor' | 'admin' | 'superadmin' | 'student'; email?: string };
+      this.role = parsed.role ?? '';
+      this.email = (parsed.email ?? '').trim().toLowerCase();
+      this.isAdmin = this.role === 'admin' || this.role === 'superadmin';
+    } catch {
+      localStorage.removeItem(this.authSessionStorageKey);
     }
   }
 }

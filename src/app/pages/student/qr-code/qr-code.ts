@@ -13,6 +13,7 @@ export class StudentQrCodeComponent {
 
   readonly fullName = signal('Tiesha Kate D. Regular');
   readonly email = signal('regular.tieshakated@gmail.com');
+  readonly qrCodeValue = signal('');
   readonly qrImage = signal('');
   readonly isGeneratingQr = signal(true);
 
@@ -35,9 +36,10 @@ export class StudentQrCodeComponent {
     if (!savedProfile) return;
 
     try {
-      const parsed = JSON.parse(savedProfile) as { fullName?: string; email?: string };
+      const parsed = JSON.parse(savedProfile) as { fullName?: string; email?: string; qrCodeValue?: string };
       if (parsed.fullName) this.fullName.set(parsed.fullName);
       if (parsed.email) this.email.set(parsed.email);
+      if (parsed.qrCodeValue) this.qrCodeValue.set(parsed.qrCodeValue);
     } catch {
       localStorage.removeItem(this.profileStorageKey);
     }
@@ -51,6 +53,9 @@ export class StudentQrCodeComponent {
       if (studentProfile) {
         this.fullName.set(studentProfile.fullName);
         this.email.set(studentProfile.email);
+        if (studentProfile.qrCodeValue) {
+          this.qrCodeValue.set(studentProfile.qrCodeValue);
+        }
       }
     } catch {
       // Keep current local profile when API is unavailable.
@@ -61,11 +66,11 @@ export class StudentQrCodeComponent {
 
   private async generateQrCode(): Promise<void> {
     this.isGeneratingQr.set(true);
+    const qrCodeValue = this.qrCodeValue() || `ATTENDEASE-STUDENT-${this.email().toUpperCase()}`;
     const payload = JSON.stringify({
       app: 'ATTENDEASE',
       role: 'student',
-      fullName: this.fullName(),
-      email: this.email(),
+      qrCodeValue,
     });
 
     try {

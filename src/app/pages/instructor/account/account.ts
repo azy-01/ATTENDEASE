@@ -64,15 +64,20 @@ import { StudentApiService, type InstructorAccount } from '../../../core/data/st
 })
 export class AccountComponent {
   private readonly profileStorageKey = 'instructor-account-profile';
+  private readonly authSessionStorageKey = 'attendease-auth-session';
   private accountId = 'ins-acc-1';
+  private currentRole: 'instructor' | 'admin' | 'superadmin' = 'instructor';
 
   readonly fullName = signal('Azryth Sacuan');
   readonly email = signal('sacuan.azryth0@gmail.com');
   readonly saveMessage = signal('');
 
   constructor(private readonly api: StudentApiService) {
+    this.loadProfileFromSession();
     this.loadProfileFromLocalStorage();
-    void this.loadProfileFromApi();
+    if (this.currentRole === 'instructor') {
+      void this.loadProfileFromApi();
+    }
   }
 
   async saveChanges(): Promise<void> {
@@ -90,12 +95,25 @@ export class AccountComponent {
       this.profileStorageKey,
       JSON.stringify({ fullName: this.fullName(), email: this.email() })
     );
+    localStorage.setItem(
+      this.authSessionStorageKey,
+      JSON.stringify({
+        role: this.currentRole,
+        fullName: this.fullName(),
+        email: this.email().trim().toLowerCase()
+      })
+    );
 
     const payload: InstructorAccount = {
       id: this.accountId,
       fullName: this.fullName(),
       email: this.email(),
     };
+
+    if (this.currentRole !== 'instructor') {
+      this.saveMessage.set('Changes saved for current session.');
+      return;
+    }
 
     try {
       const updated = await this.api.updateInstructorAccount(this.accountId, payload);
@@ -114,10 +132,27 @@ export class AccountComponent {
 
     try {
       const parsed = JSON.parse(savedProfile) as { fullName?: string; email?: string };
-      if (parsed.fullName) this.fullName.set(parsed.fullName);
-      if (parsed.email) this.email.set(parsed.email);
+      if (parsed.fullName && !this.fullName().trim()) this.fullName.set(parsed.fullName);
+      if (parsed.email && !this.email().trim()) this.email.set(parsed.email);
     } catch {
       localStorage.removeItem(this.profileStorageKey);
+    }
+  }
+
+  private loadProfileFromSession(): void {
+    const rawSession = localStorage.getItem(this.authSessionStorageKey);
+    if (!rawSession) return;
+    try {
+      const session = JSON.parse(rawSession) as {
+        role?: 'instructor' | 'admin' | 'superadmin';
+        fullName?: string;
+        email?: string;
+      };
+      if (session.role) this.currentRole = session.role;
+      if (session.fullName?.trim()) this.fullName.set(session.fullName.trim());
+      if (session.email?.trim()) this.email.set(session.email.trim());
+    } catch {
+      localStorage.removeItem(this.authSessionStorageKey);
     }
   }
 
@@ -133,4 +168,5 @@ export class AccountComponent {
       // Keep local fallback values.
     }
   }
+
 }

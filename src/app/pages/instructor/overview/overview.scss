@@ -271,6 +271,28 @@
     color: #d1d5db;
 }
 
+.assignment-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.scope-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #374151;
+    font-size: 0.875rem;
+
+    p {
+        margin: 0;
+    }
+}
+
 // ── Rate display ───────────────────────────────────────────
 .rate-display {
     display: flex;
@@ -433,7 +455,9 @@
     .student-cell .student-name,
     .cal-month-label,
     .attendance-table td,
-    .cal-day {
+    .cal-day,
+    .assignment-list,
+    .scope-summary {
         color: #e2e8f0;
     }
 

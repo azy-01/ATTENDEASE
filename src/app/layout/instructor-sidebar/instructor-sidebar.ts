@@ -21,24 +21,18 @@ export class InstructorSidebarComponent implements OnInit {
   @Output() closeSidebar = new EventEmitter<void>();
   isDarkMode = false;
   private readonly themeStorageKey = 'attendease-theme';
+  private readonly authSessionStorageKey = 'attendease-auth-session';
+  private currentRole: 'instructor' | 'admin' | 'superadmin' = 'instructor';
 
-  navItems: NavItem[] = [
-    { route: '/instructor/overview', icon: 'dashboard', label: 'Overview' },
-    { route: '/instructor/attendance', icon: 'event_available', label: 'Attendance' },
-    { route: '/instructor/records', icon: 'description', label: 'Records' },
-    { route: '/instructor/students', icon: 'people', label: 'Students' },
-    { route: '/instructor/classes', icon: 'menu_book', label: 'Classes' },
-    { route: '/instructor/schedules', icon: 'calendar_month', label: 'Schedules' },
-    { route: '/instructor/reports', icon: 'bar_chart', label: 'Reports' },
-    { route: '/instructor/settings', icon: 'settings', label: 'Settings' },
-    { route: '/instructor/account', icon: 'person', label: 'Account' },
-  ];
+  navItems: NavItem[] = [];
 
   constructor(private router: Router) { }
 
   ngOnInit(): void {
     this.isDarkMode = localStorage.getItem(this.themeStorageKey) === 'dark';
     document.body.classList.toggle('dark-mode', this.isDarkMode);
+    this.resolveSessionRole();
+    this.navItems = this.buildNavItems();
   }
 
   close(): void {
@@ -70,8 +64,54 @@ export class InstructorSidebarComponent implements OnInit {
       return;
     }
 
-    // Clear auth tokens / session here, then redirect
-    // e.g. this.authService.logout();
+    localStorage.removeItem(this.authSessionStorageKey);
     this.router.navigate(['/']);
+  }
+
+  private resolveSessionRole(): void {
+    const rawSession = localStorage.getItem(this.authSessionStorageKey);
+    if (!rawSession) return;
+    try {
+      const parsed = JSON.parse(rawSession) as { role?: string };
+      if (parsed.role === 'admin' || parsed.role === 'superadmin') {
+        this.currentRole = parsed.role;
+      }
+    } catch {
+      localStorage.removeItem(this.authSessionStorageKey);
+    }
+  }
+
+  private buildNavItems(): NavItem[] {
+    const items: NavItem[] = [
+      { route: '/instructor/overview', icon: 'dashboard', label: 'Overview' },
+      { route: '/instructor/attendance', icon: 'event_available', label: 'Attendance' },
+      { route: '/instructor/students', icon: 'people', label: 'Students' },
+      { route: '/instructor/classes', icon: 'menu_book', label: 'Classes' },
+    ];
+
+    if (this.currentRole === 'admin' || this.currentRole === 'superadmin') {
+      items.splice(
+        2,
+        0,
+        { route: '/instructor/instructor-accounts', icon: 'groups', label: 'Instructor Accounts' },
+        { route: '/instructor/instructors', icon: 'person_add', label: 'Account Creation' },
+        { route: '/instructor/pending-account-approval', icon: 'how_to_reg', label: 'Pending Approvals' }
+      );
+      items.push({ route: '/instructor/reports', icon: 'bar_chart', label: 'Reports' });
+    } else {
+      items.splice(
+        2,
+        0,
+        { route: '/instructor/schedules', icon: 'calendar_month', label: 'Schedules' },
+        { route: '/instructor/records', icon: 'description', label: 'Records' }
+      );
+    }
+
+    items.push(
+      { route: '/instructor/settings', icon: 'settings', label: 'Settings' },
+      { route: '/instructor/account', icon: 'person', label: 'Account' }
+    );
+
+    return items;
   }
 }

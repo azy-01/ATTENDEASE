@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
-import { StudentApiService, type InstructorSchedule } from '../../../core/data/student-api.service';
+import { StudentApiService, type InstructorClass, type InstructorSchedule } from '../../../core/data/student-api.service';
 
 @Component({
   selector: 'app-schedules',
@@ -11,7 +11,7 @@ import { StudentApiService, type InstructorSchedule } from '../../../core/data/s
   template: `
     <div class="page">
       <div class="top">
-        <button type="button" (click)="onAddSchedule()">+ Add Schedule</button>
+        <button type="button" *ngIf="isAdmin" (click)="onAddSchedule()">+ Add Schedule</button>
       </div>
       <section class="group" *ngFor="let day of groupedDays">
         <h3>{{ day.day }}</h3>
@@ -25,10 +25,10 @@ import { StudentApiService, type InstructorSchedule } from '../../../core/data/s
           </div>
           <div class="right">
             <span>{{ item.mode }}</span>
-            <button type="button" class="icon-btn" (click)="onEditSchedule(item)" aria-label="Edit schedule">
+            <button type="button" class="icon-btn" *ngIf="isAdmin" (click)="onEditSchedule(item)" aria-label="Edit schedule">
               <span class="material-icons">edit</span>
             </button>
-            <button type="button" class="icon-btn delete" (click)="onDeleteSchedule(item)" aria-label="Delete schedule">
+            <button type="button" class="icon-btn delete" *ngIf="isAdmin" (click)="onDeleteSchedule(item)" aria-label="Delete schedule">
               <span class="material-icons">delete_outline</span>
             </button>
           </div>
@@ -36,13 +36,16 @@ import { StudentApiService, type InstructorSchedule } from '../../../core/data/s
       </section>
     </div>
 
-    <div class="modal-overlay" *ngIf="isModalOpen" (click)="closeModal()">
+    <div class="modal-overlay" *ngIf="isAdmin && isModalOpen" (click)="closeModal()">
       <div class="modal" (click)="$event.stopPropagation()">
         <h3>{{ isEditing ? 'Edit Schedule' : 'Add Schedule' }}</h3>
 
         <label>
           Subject
-          <input type="text" [(ngModel)]="draftSchedule.title" />
+          <select [(ngModel)]="draftSchedule.title">
+            <option value="" disabled>Select subject</option>
+            <option *ngFor="let subject of availableSubjects()" [value]="subject">{{ subject }}</option>
+          </select>
         </label>
 
         <label>
@@ -59,7 +62,10 @@ import { StudentApiService, type InstructorSchedule } from '../../../core/data/s
 
         <label>
           Section
-          <input type="text" [(ngModel)]="draftSchedule.section" placeholder="BSIT-1A" />
+          <select [(ngModel)]="draftSchedule.section">
+            <option value="" disabled>Select section</option>
+            <option *ngFor="let section of availableSections()" [value]="section">{{ section }}</option>
+          </select>
         </label>
 
         <label>
@@ -247,8 +253,24 @@ import { StudentApiService, type InstructorSchedule } from '../../../core/data/s
   `],
 })
 export class SchedulesComponent {
+  private readonly authSessionStorageKey = 'attendease-auth-session';
+  private readonly defaultSubjectOptions: string[] = [
+    'Ethics',
+    'Mathematics',
+    'Science',
+    'English',
+    'Filipino',
+    'Programming',
+    'Networking',
+    'Database Management',
+    'Web Development',
+    'Capstone Project',
+  ];
   weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
   readonly schedules = signal<InstructorSchedule[]>([]);
+  readonly availableSections = signal<string[]>([]);
+  readonly availableSubjects = signal<string[]>([...this.defaultSubjectOptions]);
+  isAdmin = false;
   isModalOpen = false;
   isEditing = false;
   editingSchedule: InstructorSchedule | null = null;
@@ -256,7 +278,9 @@ export class SchedulesComponent {
   draftSchedule: InstructorSchedule = this.createEmptySchedule();
 
   constructor(private readonly api: StudentApiService) {
+    this.resolveSessionRole();
     void this.loadSchedules();
+    void this.loadAllowedSections();
   }
 
   get groupedDays(): { day: string; items: InstructorSchedule[] }[] {
@@ -269,6 +293,7 @@ export class SchedulesComponent {
   }
 
   onAddSchedule(): void {
+    if (!this.isAdmin) return;
     this.isEditing = false;
     this.editingSchedule = null;
     this.modalError = '';
@@ -277,6 +302,7 @@ export class SchedulesComponent {
   }
 
   onEditSchedule(item: InstructorSchedule): void {
+    if (!this.isAdmin) return;
     this.isEditing = true;
     this.editingSchedule = item;
     this.modalError = '';
@@ -285,6 +311,7 @@ export class SchedulesComponent {
   }
 
   async onDeleteSchedule(item: InstructorSchedule): Promise<void> {
+    if (!this.isAdmin) return;
     const result = await Swal.fire({
       title: 'Delete schedule?',
       text: `This will remove "${item.title}" from your schedule list.`,
@@ -313,6 +340,7 @@ export class SchedulesComponent {
   }
 
   async saveSchedule(): Promise<void> {
+    if (!this.isAdmin) return;
     const cleaned: InstructorSchedule = {
       id: this.draftSchedule.id || `schedule-${Date.now()}`,
       title: this.draftSchedule.title.trim(),
@@ -361,7 +389,7 @@ export class SchedulesComponent {
       day: 'MONDAY',
       time: '',
       title: '',
-      section: '',
+      section: this.availableSections()[0] ?? '',
       meta: '',
       mode: 'Face-To-Face',
     };
@@ -369,9 +397,108 @@ export class SchedulesComponent {
 
   private async loadSchedules(): Promise<void> {
     try {
-      this.schedules.set(await this.api.getInstructorSchedules());
+      const allSchedules = await this.api.getInstructorSchedules();
+      const rawSession = localStorage.getItem('attendease-auth-session');
+      if (!rawSession) {
+        this.schedules.set(allSchedules);
+        return;
+      }
+
+      const session = JSON.parse(rawSession) as { role?: string; email?: string };
+      const role = session.role;
+      const email = (session.email ?? '').trim().toLowerCase();
+      if (role !== 'instructor' || !email) {
+        this.schedules.set(allSchedules);
+        return;
+      }
+
+      const [account, allClasses] = await Promise.all([
+        this.api.getAuthAccountByEmail('instructor', email),
+        this.api.getInstructorClasses()
+      ]);
+      const allowedClassIds = account?.allowedClassIds ?? [];
+      const allowedSubjects = new Set(
+        (account?.allowedSubjects ?? [])
+          .map((subject) => subject.trim().toLowerCase())
+          .filter((subject) => Boolean(subject))
+      );
+      const allowedClassNames = new Set(
+        allClasses
+          .filter((classItem) => allowedClassIds.includes(classItem.id))
+          .map((classItem) => classItem.name.trim().toLowerCase())
+          .filter((name) => Boolean(name))
+      );
+
+      this.schedules.set(
+        allSchedules.filter((item) => {
+          const section = (item.section ?? '').trim().toLowerCase();
+          const subject = (item.title ?? '').trim().toLowerCase();
+          const matchesClass = allowedClassNames.size > 0 && allowedClassNames.has(section);
+          if (!matchesClass) {
+            return false;
+          }
+          return allowedSubjects.size > 0 ? allowedSubjects.has(subject) : true;
+        })
+      );
     } catch {
       this.schedules.set([]);
     }
+  }
+
+  private async loadAllowedSections(): Promise<void> {
+    const rawSession = localStorage.getItem('attendease-auth-session');
+    if (!rawSession) {
+      this.availableSections.set([]);
+      return;
+    }
+
+    try {
+      const session = JSON.parse(rawSession) as { role?: string; email?: string };
+      const role = session.role;
+      const email = session.email ?? '';
+      if (role !== 'instructor' || !email.trim()) {
+        const allClasses = await this.api.getInstructorClasses();
+        this.availableSections.set(this.extractClassNames(allClasses));
+        this.availableSubjects.set([...this.defaultSubjectOptions]);
+        return;
+      }
+
+      const [account, allClasses] = await Promise.all([
+        this.api.getAuthAccountByEmail('instructor', email),
+        this.api.getInstructorClasses()
+      ]);
+      const allowedClassIds = account?.allowedClassIds ?? [];
+      const allowedClasses = allowedClassIds.length
+        ? allClasses.filter((classItem) => allowedClassIds.includes(classItem.id))
+        : [];
+      this.availableSections.set(this.extractClassNames(allowedClasses));
+      this.availableSubjects.set(
+        (account?.allowedSubjects ?? []).length
+          ? [...new Set(account?.allowedSubjects ?? [])]
+          : []
+      );
+    } catch {
+      this.availableSections.set([]);
+      this.availableSubjects.set([]);
+    }
+  }
+
+  private resolveSessionRole(): void {
+    const rawSession = localStorage.getItem(this.authSessionStorageKey);
+    if (!rawSession) return;
+    try {
+      const parsed = JSON.parse(rawSession) as { role?: string };
+      this.isAdmin = parsed.role === 'admin' || parsed.role === 'superadmin';
+    } catch {
+      localStorage.removeItem(this.authSessionStorageKey);
+    }
+  }
+
+  private extractClassNames(classes: InstructorClass[]): string[] {
+    return [...new Set(
+      classes
+        .map((item) => item.name.trim())
+        .filter((name) => Boolean(name))
+    )];
   }
 }

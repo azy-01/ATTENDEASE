@@ -55,7 +55,8 @@
         color: #374151;
     }
 
-    select {
+    select,
+    input {
         padding: 10px 14px;
         border-radius: 8px;
         border: 1.5px solid #e5e7eb;
@@ -67,7 +68,6 @@
         background-repeat: no-repeat;
         background-position: right 12px center;
         padding-right: 36px;
-        cursor: pointer;
         transition: border-color 0.15s, box-shadow 0.15s;
         font-family: 'Plus Jakarta Sans', sans-serif;
 
@@ -77,6 +77,58 @@
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
     }
+
+    input {
+        background-image: none;
+        padding-right: 14px;
+    }
+}
+
+.manual-code-group {
+    margin-bottom: 14px;
+}
+
+.manual-code-row {
+    display: flex;
+    gap: 10px;
+
+    input {
+        flex: 1;
+    }
+}
+
+.btn-secondary {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    height: 40px;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+}
+
+.manual-code-group small {
+    color: #6b7280;
+}
+
+.error-message {
+    margin: 10px 0 0;
+    color: #b91c1c;
+    font-size: 0.82rem;
+}
+
+.success-message {
+    margin: 10px 0 0;
+    color: #166534;
+    font-size: 0.82rem;
 }
 
 // ── Button ─────────────────────────────────────────────────
@@ -109,6 +161,29 @@
 
     &:disabled {
         opacity: 0.55;
+        cursor: not-allowed;
+    }
+}
+
+.btn-danger {
+    border: 1px solid #ef4444;
+    background: #fff;
+    color: #b91c1c;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+
+    &:hover:not(:disabled) {
+        background: #fee2e2;
+        border-color: #dc2626;
+    }
+
+    &:disabled {
+        opacity: 0.6;
         cursor: not-allowed;
     }
 }
@@ -152,6 +227,12 @@
     }
 }
 
+.session-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .session-info {
     display: flex;
     flex-direction: column;
@@ -169,6 +250,13 @@
     font-size: 0.8rem;
     color: #6b7280;
     margin: 0;
+}
+
+.session-code {
+    font-size: 0.8rem;
+    color: #4338ca;
+    margin: 0;
+    font-weight: 600;
 }
 
 // ── Badges ─────────────────────────────────────────────────
@@ -221,6 +309,15 @@
     .form-row {
         grid-template-columns: 1fr;
     }
+
+    .manual-code-row {
+        flex-direction: column;
+    }
+
+    .session-actions {
+        flex-direction: column;
+        align-items: flex-end;
+    }
 }
 
 :host-context(body.dark-mode) {
@@ -242,11 +339,41 @@
         color: #94a3b8;
     }
 
-    .form-group select {
+    .form-group select,
+    .form-group input {
         background-color: #0f172a;
         border-color: #374151;
         color: #e2e8f0;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    }
+
+    .form-group input {
+        background-image: none;
+    }
+
+    .btn-secondary {
+        background: #0f172a;
+        border-color: #374151;
+        color: #e2e8f0;
+    }
+
+    .btn-danger {
+        background: #0f172a;
+        border-color: #7f1d1d;
+        color: #fecaca;
+
+        &:hover:not(:disabled) {
+            background: #450a0a;
+            border-color: #991b1b;
+        }
+    }
+
+    .manual-code-group small {
+        color: #94a3b8;
+    }
+
+    .session-code {
+        color: #818cf8;
     }
 
     .session-item {

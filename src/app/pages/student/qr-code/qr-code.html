@@ -14,6 +14,9 @@
     </div>
 
     <p>Show this QR code to your instructor during attendance sessions.</p>
+    @if (qrCodeValue()) {
+      <small>Code: {{ qrCodeValue() }}</small>
+    }
     <button type="button" (click)="downloadQrCode()" [disabled]="!qrImage()">
       <span class="material-icons">download</span>
       Download QR Code

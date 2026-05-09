@@ -10,18 +10,24 @@ import { SchedulesComponent } from './pages/instructor/schedules/schedules';
 import { Reports } from './pages/instructor/reports/reports';
 import { SettingsComponent } from './pages/instructor/settings/settings';
 import { AccountComponent } from './pages/instructor/account/account';
+import { InstructorsManagementComponent } from './pages/instructor/instructors/instructors';
+import { PendingAccountApprovalComponent } from './pages/instructor/pending-account-approval/pending-account-approval';
+import { InstructorAccountsComponent } from './pages/instructor/instructor-accounts/instructor-accounts';
 import { StudentLayoutComponent } from './layout/student-layout/student-layout';
 import { StudentOverviewComponent } from './pages/student/overview/overview';
 import { MyAttendanceComponent } from './pages/student/my-attendance/my-attendance';
 import { StudentScheduleComponent } from './pages/student/schedule/schedule';
 import { StudentQrCodeComponent } from './pages/student/qr-code/qr-code';
 import { StudentSettingsComponent } from './pages/student/settings/settings';
+import { allowRoles, allowRolesForChildren } from './core/auth/auth.guard';
 
 export const routes: Routes = [
     { path: '', component: LandingComponent },
     {
         path: 'instructor',
         component: InstructorLayoutComponent,
+        canActivate: [allowRoles(['instructor', 'admin', 'superadmin'])],
+        canActivateChild: [allowRolesForChildren(['instructor', 'admin', 'superadmin'])],
         children: [
             { path: 'overview', component: OverviewComponent },
             { path: 'attendance', component: AttendanceComponent },
@@ -29,8 +35,11 @@ export const routes: Routes = [
             { path: 'students', component: StudentsComponent },
             { path: 'classes', component: ClassesComponent },
             { path: 'schedules', component: SchedulesComponent },
-            { path: 'reports', component: Reports },
+            { path: 'reports', component: Reports, canActivate: [allowRoles(['admin', 'superadmin'])] },
             { path: 'settings', component: SettingsComponent },
+            { path: 'instructors', component: InstructorsManagementComponent },
+            { path: 'pending-account-approval', component: PendingAccountApprovalComponent },
+            { path: 'instructor-accounts', component: InstructorAccountsComponent, canActivate: [allowRoles(['admin', 'superadmin'])] },
             { path: 'account', component: AccountComponent },
             { path: '', redirectTo: 'overview', pathMatch: 'full' },
         ],
@@ -38,6 +47,8 @@ export const routes: Routes = [
     {
         path: 'student',
         component: StudentLayoutComponent,
+        canActivate: [allowRoles(['student'])],
+        canActivateChild: [allowRolesForChildren(['student'])],
         children: [
             { path: 'overview', component: StudentOverviewComponent },
             { path: 'schedule', component: StudentScheduleComponent },

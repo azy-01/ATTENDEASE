@@ -24,7 +24,7 @@
               <th>Status</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody *ngIf="recentAttendance.length; else noAttendanceRows">
             <tr *ngFor="let item of recentAttendance">
               <td>{{ item.subject }}</td>
               <td><span class="class-badge">{{ item.section }}</span></td>
@@ -35,15 +35,21 @@
             </tr>
           </tbody>
         </table>
+        <ng-template #noAttendanceRows>
+          <p class="empty-state">No attendance records yet.</p>
+        </ng-template>
       </div>
     </div>
 
     <div class="overview-right">
       <div class="card">
         <h2 class="card-title">Upcoming Classes</h2>
-        <ul class="upcoming-list">
+        <ul class="upcoming-list" *ngIf="upcomingClasses.length; else noUpcomingClasses">
           <li *ngFor="let item of upcomingClasses">{{ item }}</li>
         </ul>
+        <ng-template #noUpcomingClasses>
+          <p class="empty-state">No assigned schedules yet.</p>
+        </ng-template>
       </div>
 
       <div class="card">

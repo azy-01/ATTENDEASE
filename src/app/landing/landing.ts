@@ -47,7 +47,6 @@ export type AuthView = 'login' | 'signup-choose' | 'signup-instructor' | 'signup
 export interface LoginForm {
   email: string;
   password: string;
-  role: 'instructor' | 'student' | '';
 }
 
 export interface InstructorSignup {
@@ -127,7 +126,7 @@ export class LandingComponent implements OnInit, OnDestroy {
 
   // ── Contact ───────────────────────────────────────────────
   contactForm: ContactForm = { firstName: '', lastName: '', email: '', role: '', message: '' };
-  roleOptions = ['Instructor', 'Student', 'Administrator'];
+  roleOptions = ['Instructor', 'Student', 'Administrator', 'Superadmin'];
 
   // ── Toast ─────────────────────────────────────────────────
   toast: Toast | null = null;
@@ -141,7 +140,7 @@ export class LandingComponent implements OnInit, OnDestroy {
   showPassword = false;
   showConfirmPassword = false;
 
-  loginForm: LoginForm = { email: '', password: '', role: '' };
+  loginForm: LoginForm = { email: '', password: '' };
 
   instructorForm: InstructorSignup = {
     firstName: '', lastName: '', gmail: '', password: '', confirmPassword: ''
@@ -251,12 +250,12 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.showPassword = false;
     this.showConfirmPassword = false;
     this.showLoginPassword = false;
-    this.loginForm = { email: '', password: '', role: '' };
+    this.loginForm = { email: '', password: '' };
     this.instructorForm = { firstName: '', lastName: '', gmail: '', password: '', confirmPassword: '' };
     this.studentForm = { firstName: '', lastName: '', email: '', password: '' };
   }
 
-  private storeAuthSession(role: 'instructor' | 'student', fullName: string, email: string): void {
+  private storeAuthSession(role: 'instructor' | 'student' | 'admin' | 'superadmin', fullName: string, email: string): void {
     localStorage.setItem(
       this.authSessionStorageKey,
       JSON.stringify({
@@ -279,46 +278,58 @@ export class LandingComponent implements OnInit, OnDestroy {
   // ── Login submit ──────────────────────────────────────────
   async onLogin(): Promise<void> {
     this.formErrors = {};
-    if (!this.loginForm.role) this.formErrors['role'] = 'Please select a role.';
-
     if (!this.loginForm.email) this.formErrors['email'] = 'Email is required.';
 
     if (!this.loginForm.password) this.formErrors['password'] = 'Password is required.';
     if (Object.keys(this.formErrors).length) return;
 
-    const role = this.loginForm.role;
-    if (role !== 'instructor' && role !== 'student') {
-      this.formErrors['role'] = 'Please select a valid role.';
-      return;
-    }
-
     this.isLoading = true;
     try {
-      const authenticatedUser = await this.studentApi.authenticateAccount({
-        role,
-        email: this.loginForm.email,
-        password: this.loginForm.password.trim()
-      });
+      const [instructorAccount, adminAccount, superAdminAccount, studentAccount] = await Promise.all([
+        this.studentApi.authenticateAccount({
+          role: 'instructor',
+          email: this.loginForm.email,
+          password: this.loginForm.password.trim()
+        }),
+        this.studentApi.authenticateAccount({
+          role: 'admin',
+          email: this.loginForm.email,
+          password: this.loginForm.password.trim()
+        }),
+        this.studentApi.authenticateAccount({
+          role: 'superadmin',
+          email: this.loginForm.email,
+          password: this.loginForm.password.trim()
+        }),
+        this.studentApi.authenticateAccount({
+          role: 'student',
+          email: this.loginForm.email,
+          password: this.loginForm.password.trim()
+        })
+      ]);
 
+      const authenticatedUser = instructorAccount ?? adminAccount ?? superAdminAccount ?? studentAccount ?? null;
       if (!authenticatedUser) {
-        this.formErrors['auth'] = 'Invalid role, email, or password.';
+        this.formErrors['auth'] = 'Invalid email or password.';
         return;
       }
 
+      const role = authenticatedUser.role;
       this.storeAuthSession(role, authenticatedUser.fullName, authenticatedUser.email);
       if (role === 'student') {
         localStorage.setItem(
           this.studentProfileStorageKey,
           JSON.stringify({
             fullName: authenticatedUser.fullName,
-            email: authenticatedUser.email
+            email: authenticatedUser.email,
+            qrCodeValue: authenticatedUser.qrCodeValue
           })
         );
       }
 
       this.isLoading = false;
       this.closeModal();
-      if (role === 'instructor') {
+      if (role === 'instructor' || role === 'admin' || role === 'superadmin') {
         void this.router.navigate(['/instructor/overview']);
       } else {
         void this.router.navigate(['/student/overview']);
@@ -329,7 +340,6 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.isLoading = false;
     }
   }
-
   // ── Instructor signup ─────────────────────────────────────
   async onInstructorSignup(): Promise<void> {
     this.formErrors = {};
@@ -346,17 +356,15 @@ export class LandingComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
     try {
-      const account = await this.studentApi.registerAccount({
+      await this.studentApi.registerAccount({
         role: 'instructor',
         firstName: f.firstName,
         lastName: f.lastName,
         email: f.gmail,
         password: f.password
       });
-      this.storeAuthSession('instructor', account.fullName, account.email);
       this.closeModal();
-      this.showToast(`🎉 Account created! Welcome, ${f.firstName}!`, '#4F46E5', 'rgba(79,70,229,.4)');
-      void this.router.navigate(['/instructor/overview']);
+      this.showToast('Account submitted. Please wait for admin approval before logging in.', '#4F46E5', 'rgba(79,70,229,.4)');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to create account right now.';
       this.formErrors['auth'] = message;
@@ -378,24 +386,15 @@ export class LandingComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
     try {
-      const account = await this.studentApi.registerAccount({
+      await this.studentApi.registerAccount({
         role: 'student',
         firstName: f.firstName,
         lastName: f.lastName,
         email: f.email,
         password: f.password
       });
-      this.storeAuthSession('student', account.fullName, account.email);
-      localStorage.setItem(
-        this.studentProfileStorageKey,
-        JSON.stringify({
-          fullName: account.fullName,
-          email: account.email
-        })
-      );
       this.closeModal();
-      this.showToast(`🎉 Account created! Welcome, ${f.firstName}!`, '#4F46E5', 'rgba(79,70,229,.4)');
-      void this.router.navigate(['/student/overview']);
+      this.showToast('Account submitted. Please wait for admin approval before logging in.', '#4F46E5', 'rgba(79,70,229,.4)');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to create account right now.';
       this.formErrors['auth'] = message;

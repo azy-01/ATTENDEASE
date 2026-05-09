@@ -259,21 +259,8 @@
       <h2 class="modal-title">Welcome back</h2>
       <p class="modal-sub">Log in to your account to continue.</p>
       <p class="modal-sub">
-        Demo accounts: Instructor (instructor@gmail.com / Instructor123) or Student (student@email.com or student@gmail.com / Student123)
+        Demo accounts: Superadmin (superadmin@attendease.com / SuperAdmin123), Instructor (instructor@gmail.com / Instructor123), or Student (student@email.com or student@gmail.com / Student123)
       </p>
-
-      <!-- Role selector -->
-      <div class="role-tabs">
-        <button [class.active]="loginForm.role === 'instructor'" (click)="loginForm.role = 'instructor'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          Instructor
-        </button>
-        <button [class.active]="loginForm.role === 'student'" (click)="loginForm.role = 'student'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>
-          Student
-        </button>
-      </div>
-      <div class="field-error" *ngIf="formErrors['role']">{{ formErrors['role'] }}</div>
 
       <div class="form-group">
         <label>Email Address</label>

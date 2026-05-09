@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { StudentApiService, type AttendanceRecord } from '../../../core/data/student-api.service';
 
 interface StatCard {
   label: string;
@@ -28,23 +29,18 @@ interface AttendanceItem {
   styleUrls: ['./overview.scss'],
 })
 export class StudentOverviewComponent implements OnInit {
+  private readonly authSessionStorageKey = 'attendease-auth-session';
+  private readonly studentProfileStorageKey = 'student-account-profile';
   stats: StatCard[] = [
-    { label: 'Attendance Rate', value: '93%', icon: 'percent', color: '#4f46e5' },
-    { label: 'Present Days', value: '14', icon: 'how_to_reg', color: '#10b981' },
-    { label: 'Late Days', value: '2', icon: 'schedule', color: '#f59e0b' },
-    { label: 'Absent Days', value: '1', icon: 'person_off', color: '#ef4444' },
+    { label: 'Attendance Rate', value: '0%', icon: 'percent', color: '#4f46e5' },
+    { label: 'Present Days', value: '0', icon: 'how_to_reg', color: '#10b981' },
+    { label: 'Late Days', value: '0', icon: 'schedule', color: '#f59e0b' },
+    { label: 'Absent Days', value: '0', icon: 'person_off', color: '#ef4444' },
   ];
 
-  recentAttendance: AttendanceItem[] = [
-    { subject: 'Programming', section: 'BSIT-2A', date: '2026-04-20', status: 'Present' },
-    { subject: 'Database Management', section: 'BSIT-2A', date: '2026-04-18', status: 'Late' },
-    { subject: 'Networking', section: 'BSIT-2A', date: '2026-04-16', status: 'Present' },
-  ];
+  recentAttendance: AttendanceItem[] = [];
 
-  upcomingClasses: string[] = [
-    'Programming - Wed 10:00 AM',
-    'Database Management - Thu 1:00 PM',
-  ];
+  upcomingClasses: string[] = [];
 
   dayNames: string[] = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   calendarCells: CalendarCell[] = [];
@@ -52,8 +48,11 @@ export class StudentOverviewComponent implements OnInit {
 
   private viewDate: Date = new Date();
 
+  constructor(private readonly studentApi: StudentApiService) {}
+
   ngOnInit(): void {
     this.buildCalendar();
+    void this.loadStudentOverviewData();
   }
 
   buildCalendar(): void {
@@ -90,5 +89,79 @@ export class StudentOverviewComponent implements OnInit {
   nextMonth(): void {
     this.viewDate = new Date(this.viewDate.getFullYear(), this.viewDate.getMonth() + 1, 1);
     this.buildCalendar();
+  }
+
+  private async loadStudentOverviewData(): Promise<void> {
+    const email = this.getLoggedInStudentEmail();
+    if (!email) {
+      this.recentAttendance = [];
+      this.upcomingClasses = [];
+      this.applyAttendanceStats([]);
+      return;
+    }
+
+    try {
+      const [attendanceRecords, assignedSchedules] = await Promise.all([
+        this.studentApi.getAttendanceRecords(),
+        this.studentApi.getStudentSchedulesByEmail(email),
+      ]);
+      const normalizedEmail = email.trim().toLowerCase();
+      const ownRecords = attendanceRecords
+        .filter((record) => (record.studentEmail ?? '').trim().toLowerCase() === normalizedEmail);
+
+      this.applyAttendanceStats(ownRecords);
+      this.recentAttendance = ownRecords
+        .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
+        .slice(0, 5)
+        .map((record) => ({
+          subject: record.subject,
+          section: record.section,
+          date: record.date,
+          status: record.status
+        }));
+
+      this.upcomingClasses = assignedSchedules.map(
+        (schedule) => `${schedule.subject} - ${schedule.day} ${schedule.time}`
+      );
+    } catch {
+      this.recentAttendance = [];
+      this.upcomingClasses = [];
+      this.applyAttendanceStats([]);
+    }
+  }
+
+  private applyAttendanceStats(records: AttendanceRecord[]): void {
+    const presentCount = records.filter((item) => item.status === 'Present').length;
+    const lateCount = records.filter((item) => item.status === 'Late').length;
+    const absentCount = records.filter((item) => item.status === 'Absent').length;
+    const denominator = records.length || 1;
+    const attendanceRate = Math.round(((presentCount + lateCount) / denominator) * 100);
+
+    this.stats = [
+      { label: 'Attendance Rate', value: `${attendanceRate}%`, icon: 'percent', color: '#4f46e5' },
+      { label: 'Present Days', value: String(presentCount), icon: 'how_to_reg', color: '#10b981' },
+      { label: 'Late Days', value: String(lateCount), icon: 'schedule', color: '#f59e0b' },
+      { label: 'Absent Days', value: String(absentCount), icon: 'person_off', color: '#ef4444' },
+    ];
+  }
+
+  private getLoggedInStudentEmail(): string {
+    const fromSession = this.readEmailFromStorage(this.authSessionStorageKey);
+    if (fromSession) return fromSession;
+    return this.readEmailFromStorage(this.studentProfileStorageKey);
+  }
+
+  private readEmailFromStorage(key: string): string {
+    const raw = localStorage.getItem(key);
+    if (!raw) return '';
+    try {
+      const parsed = JSON.parse(raw) as { role?: string; email?: string };
+      if (key === this.authSessionStorageKey && parsed.role !== 'student') {
+        return '';
+      }
+      return parsed.email?.trim().toLowerCase() ?? '';
+    } catch {
+      return '';
+    }
   }
 }

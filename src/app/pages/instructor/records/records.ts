@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { StudentApiService, type AttendanceRecord as ApiAttendanceRecord } from '../../../core/data/student-api.service';
 
 interface AttendanceRecord {
   student: string;
@@ -122,19 +123,23 @@ interface AttendanceRecord {
     .dark-mode .empty { color: #64748b; }
   `],
 })
-export class RecordsComponent {
+export class RecordsComponent implements OnInit {
+  private readonly authSessionStorageKey = 'attendease-auth-session';
+  private role: 'instructor' | 'admin' | 'superadmin' | 'student' | '' = '';
+  private email = '';
   searchTerm = '';
   selectedStatus: '' | AttendanceRecord['status'] = '';
   fromDate = '';
   toDate = '';
 
-  records: AttendanceRecord[] = [
-    { student: 'Ana Dela Cruz', id: '2024-0101', section: 'BSIT-2C', subject: 'Ethics', date: '2026-04-18', timeIn: '07:58 AM', status: 'Present' },
-    { student: 'Mark Reyes', id: '2024-0102', section: 'BSIT-2C', subject: 'Ethics', date: '2026-04-18', timeIn: '08:11 AM', status: 'Late' },
-    { student: 'Joan Santos', id: '2024-0129', section: 'BSIT-2C', subject: 'Ethics', date: '2026-04-18', timeIn: '--', status: 'Absent' },
-    { student: 'Carlo Navarro', id: '2024-0144', section: 'BSIT-2B', subject: 'Programming', date: '2026-04-17', timeIn: '01:01 PM', status: 'Late' },
-    { student: 'Lara Mendoza', id: '2024-0190', section: 'BSIT-2B', subject: 'Programming', date: '2026-04-17', timeIn: '12:55 PM', status: 'Present' },
-  ];
+  records: AttendanceRecord[] = [];
+
+  constructor(private readonly api: StudentApiService) {}
+
+  ngOnInit(): void {
+    this.resolveSession();
+    void this.loadRecords();
+  }
 
   get filteredRecords(): AttendanceRecord[] {
     const term = this.searchTerm.trim().toLowerCase();
@@ -191,5 +196,80 @@ export class RecordsComponent {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
+
+  private async loadRecords(): Promise<void> {
+    try {
+      const [attendance, students] = await Promise.all([
+        this.api.getAttendanceRecords(),
+        this.api.getInstructorStudents()
+      ]);
+      const studentByEmail = new Map(
+        students.map((student) => [(student.email ?? '').trim().toLowerCase(), student])
+      );
+
+      const normalized = this.normalizeAttendance(attendance, studentByEmail);
+      if (this.role !== 'instructor' || !this.email) {
+        this.records = normalized;
+        return;
+      }
+
+      const [account, classes] = await Promise.all([
+        this.api.getAuthAccountByEmail('instructor', this.email),
+        this.api.getInstructorClasses()
+      ]);
+      const allowedClassNames = new Set(
+        classes
+          .filter((item) => (account?.allowedClassIds ?? []).includes(item.id))
+          .map((item) => item.name.trim().toLowerCase())
+          .filter((item) => Boolean(item))
+      );
+      const allowedSubjects = new Set(
+        (account?.allowedSubjects ?? [])
+          .map((item) => item.trim().toLowerCase())
+          .filter((item) => Boolean(item))
+      );
+
+      this.records = normalized.filter((record) => {
+        const section = record.section.trim().toLowerCase();
+        const subject = record.subject.trim().toLowerCase();
+        const matchesClass = allowedClassNames.size > 0 && allowedClassNames.has(section);
+        if (!matchesClass) return false;
+        return allowedSubjects.size > 0 ? allowedSubjects.has(subject) : true;
+      });
+    } catch {
+      this.records = [];
+    }
+  }
+
+  private normalizeAttendance(
+    attendance: ApiAttendanceRecord[],
+    studentByEmail: Map<string, { studentId: string; fullName?: string; name?: string }>
+  ): AttendanceRecord[] {
+    return attendance.map((record) => {
+      const emailKey = (record.studentEmail ?? '').trim().toLowerCase();
+      const matchedStudent = studentByEmail.get(emailKey);
+      return {
+        student: (record.studentName ?? matchedStudent?.name ?? emailKey) || 'Unknown student',
+        id: matchedStudent?.studentId ?? 'N/A',
+        section: record.section ?? '',
+        subject: record.subject ?? '',
+        date: record.date ?? '',
+        timeIn: record.timeIn ?? '--',
+        status: record.status
+      };
+    });
+  }
+
+  private resolveSession(): void {
+    const raw = localStorage.getItem(this.authSessionStorageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as { role?: 'instructor' | 'admin' | 'superadmin' | 'student'; email?: string };
+      this.role = parsed.role ?? '';
+      this.email = (parsed.email ?? '').trim().toLowerCase();
+    } catch {
+      localStorage.removeItem(this.authSessionStorageKey);
+    }
   }
 }
