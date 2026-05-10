@@ -3,10 +3,13 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   query,
+  runTransaction,
   setDoc,
+  writeBatch,
   where,
   type Firestore
 } from 'firebase/firestore';
@@ -216,9 +219,14 @@ export class StudentApiService {
     password: string;
   }): Promise<AuthAccount> {
     const normalizedEmail = payload.email.trim().toLowerCase();
+    const normalizedFullName = `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim();
     const existing = await this.findAuthAccountByEmail(payload.role, normalizedEmail);
     if (existing) {
       throw new Error('Account already exists for this role and email.');
+    }
+    const existingByName = await this.findAuthAccountByFullName(payload.role, normalizedFullName);
+    if (existingByName) {
+      throw new Error('Account already exists for this role and full name.');
     }
 
     const id = doc(collection(this.db, 'authAccounts')).id;
@@ -227,7 +235,7 @@ export class StudentApiService {
       role: payload.role,
       firstName: payload.firstName.trim(),
       lastName: payload.lastName.trim(),
-      fullName: `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim(),
+      fullName: normalizedFullName,
       email: normalizedEmail,
       password: payload.password,
       qrCodeValue: this.createUniqueQrCodeValue(payload.role, id),
@@ -250,9 +258,14 @@ export class StudentApiService {
     section?: string;
   }): Promise<AuthAccount> {
     const normalizedEmail = payload.email.trim().toLowerCase();
+    const normalizedFullName = `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim();
     const existing = await this.findAuthAccountByEmail(payload.role, normalizedEmail);
     if (existing) {
       throw new Error('Account already exists for this role and email.');
+    }
+    const existingByName = await this.findAuthAccountByFullName(payload.role, normalizedFullName);
+    if (existingByName) {
+      throw new Error('Account already exists for this role and full name.');
     }
 
     const id = doc(collection(this.db, 'authAccounts')).id;
@@ -261,7 +274,7 @@ export class StudentApiService {
       role: payload.role,
       firstName: payload.firstName.trim(),
       lastName: payload.lastName.trim(),
-      fullName: `${payload.firstName.trim()} ${payload.lastName.trim()}`.trim(),
+      fullName: normalizedFullName,
       email: normalizedEmail,
       password: payload.password,
       qrCodeValue: this.createUniqueQrCodeValue(payload.role, id),
@@ -270,11 +283,13 @@ export class StudentApiService {
       allowedClassIds: [],
       allowedSubjects: []
     };
-    await setDoc(doc(this.db, 'authAccounts', id), nextAccount);
-    await this.syncAccountToRoleCollection(nextAccount, {
+    const batch = writeBatch(this.db);
+    batch.set(doc(this.db, 'authAccounts', id), nextAccount);
+    this.queueRoleCollectionSync(batch, nextAccount, {
       studentId: payload.studentId?.trim() || '',
       section: payload.section?.trim() || ''
     });
+    await batch.commit();
     return nextAccount;
   }
 
@@ -359,21 +374,24 @@ export class StudentApiService {
   }
 
   async approveAccount(accountId: string): Promise<AuthAccount | null> {
-    const authRef = collection(this.db, 'authAccounts');
-    const authQuery = query(authRef, where('id', '==', accountId));
-    const snapshot = await getDocs(authQuery);
-    const firstDoc = snapshot.docs[0];
-    if (!firstDoc) return null;
-    const data = firstDoc.data() as AuthAccount;
+    const authDocRef = doc(this.db, 'authAccounts', accountId);
+    const authSnapshot = await getDoc(authDocRef);
+    if (!authSnapshot.exists()) {
+      return null;
+    }
+    const data = authSnapshot.data() as AuthAccount;
     const approvedAccount: AuthAccount = {
       ...data,
-      id: String(data.id ?? firstDoc.id),
+      id: String(data.id ?? authSnapshot.id),
       approvalStatus: 'approved',
       allowedClassIds: data.allowedClassIds ?? [],
       allowedSubjects: data.allowedSubjects ?? []
     };
-    await setDoc(doc(this.db, 'authAccounts', approvedAccount.id), { approvalStatus: 'approved' }, { merge: true });
-    await this.syncAccountToRoleCollection(approvedAccount);
+
+    const batch = writeBatch(this.db);
+    batch.set(authDocRef, { approvalStatus: 'approved' }, { merge: true });
+    this.queueRoleCollectionSync(batch, approvedAccount);
+    await batch.commit();
     return approvedAccount;
   }
 
@@ -473,45 +491,7 @@ export class StudentApiService {
   }
 
   async getInstructorStudents(): Promise<InstructorStudent[]> {
-    const [roster, studentAuthAccounts] = await Promise.all([
-      this.listCollection<InstructorStudent>('instructorStudents'),
-      this.getAuthAccountsByRole('student')
-    ]);
-
-    const rosterByEmail = new Map<string, InstructorStudent>();
-    for (const row of roster) {
-      const key = (row.email ?? '').trim().toLowerCase();
-      if (key) {
-        rosterByEmail.set(key, row);
-      }
-    }
-
-    const missingFromRoster: InstructorStudent[] = [];
-    for (const account of studentAuthAccounts) {
-      if (account.approvalStatus !== 'approved') continue;
-      const key = (account.email ?? '').trim().toLowerCase();
-      if (!key || rosterByEmail.has(key)) continue;
-
-      const synthetic: InstructorStudent = {
-        id: `instr-std-${account.id}`,
-        name: account.fullName,
-        studentId: '',
-        email: account.email,
-        section: ''
-      };
-      rosterByEmail.set(key, synthetic);
-      missingFromRoster.push(synthetic);
-    }
-
-    if (missingFromRoster.length > 0) {
-      void Promise.all(
-        missingFromRoster.map((row) =>
-          setDoc(doc(this.db, 'instructorStudents', row.id), row, { merge: true })
-        )
-      ).catch(() => undefined);
-    }
-
-    return Array.from(rosterByEmail.values());
+    return this.listCollection<InstructorStudent>('instructorStudents');
   }
 
   addInstructorStudent(payload: InstructorStudent): Promise<InstructorStudent> {
@@ -646,26 +626,12 @@ export class StudentApiService {
       }
     }
 
-    const existingRecords = await this.getAttendanceRecords();
-    const alreadyRecorded = existingRecords.some((record) => {
-      const recordEmail = (record.studentEmail ?? '').trim().toLowerCase();
-      return (
-        recordEmail === normalizedStudentEmail &&
-        record.subject === latestActiveSession.subject &&
-        record.section === latestActiveSession.section &&
-        record.date === latestActiveSession.date
-      );
-    });
-
-    if (alreadyRecorded) {
-      return { success: false, reason: 'ALREADY_RECORDED' };
-    }
-
     const now = new Date();
     const timeIn = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const attendanceStatus = this.resolveAttendanceStatus(latestActiveSession, now);
+    const attendanceRecordId = this.buildAttendanceRecordId(latestActiveSession.id, normalizedStudentEmail);
     const nextRecord: AttendanceRecord = {
-      id: `attendance-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: attendanceRecordId,
       studentEmail: normalizedStudentEmail,
       studentName: payload.studentName.trim(),
       subject: latestActiveSession.subject,
@@ -675,9 +641,35 @@ export class StudentApiService {
       status: attendanceStatus,
       method: payload.method
     };
+    const sessionRef = doc(this.db, 'instructorSessions', latestActiveSession.id);
+    const recordRef = doc(this.db, 'attendanceRecords', attendanceRecordId);
 
-    await setDoc(doc(this.db, 'attendanceRecords', String(nextRecord.id)), nextRecord);
-    return { success: true, record: nextRecord, session: latestActiveSession };
+    try {
+      await runTransaction(this.db, async (transaction) => {
+        const sessionSnapshot = await transaction.get(sessionRef);
+        if (!sessionSnapshot.exists()) {
+          throw new Error('NO_ACTIVE_SESSION');
+        }
+        const persistedSession = sessionSnapshot.data() as InstructorSession;
+        if (persistedSession.status !== 'active') {
+          throw new Error('NO_ACTIVE_SESSION');
+        }
+
+        const existingRecordSnapshot = await transaction.get(recordRef);
+        if (existingRecordSnapshot.exists()) {
+          throw new Error('ALREADY_RECORDED');
+        }
+
+        transaction.set(recordRef, nextRecord);
+      });
+      return { success: true, record: nextRecord, session: latestActiveSession };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : '';
+      if (reason === 'ALREADY_RECORDED') {
+        return { success: false, reason: 'ALREADY_RECORDED' };
+      }
+      return { success: false, reason: 'NO_ACTIVE_SESSION' };
+    }
   }
 
   addInstructorSession(payload: InstructorSession): Promise<InstructorSession> {
@@ -797,6 +789,21 @@ export class StudentApiService {
     });
   }
 
+  private async findAuthAccountByFullName(
+    role: 'instructor' | 'student' | 'admin' | 'superadmin',
+    fullName: string
+  ): Promise<AuthAccount | null> {
+    const normalizedFullName = fullName.trim().toLowerCase();
+    if (!normalizedFullName) {
+      return null;
+    }
+
+    const accounts = await this.getAuthAccountsByRole(role);
+    return accounts.find(
+      (account) => (account.fullName ?? '').trim().toLowerCase() === normalizedFullName
+    ) ?? null;
+  }
+
   private async getAuthAccountById(id: string): Promise<AuthAccount | null> {
     const authRef = collection(this.db, 'authAccounts');
     const authQuery = query(authRef, where('id', '==', id));
@@ -870,9 +877,19 @@ export class StudentApiService {
     account: AuthAccount,
     extras: { studentId?: string; section?: string } = {}
   ): Promise<void> {
+    const batch = writeBatch(this.db);
+    this.queueRoleCollectionSync(batch, account, extras);
+    await batch.commit();
+  }
+
+  private queueRoleCollectionSync(
+    batch: ReturnType<typeof writeBatch>,
+    account: AuthAccount,
+    extras: { studentId?: string; section?: string } = {}
+  ): void {
     if (account.role === 'student') {
       const studentDocId = `std-${account.id}`;
-      await setDoc(
+      batch.set(
         doc(this.db, 'students', studentDocId),
         {
           id: studentDocId,
@@ -882,42 +899,23 @@ export class StudentApiService {
         },
         { merge: true }
       );
-
       const rosterDocId = `instr-std-${account.id}`;
-      const rosterRef = doc(this.db, 'instructorStudents', rosterDocId);
-      const existingByEmail = await getDocs(
-        query(collection(this.db, 'instructorStudents'), where('email', '==', account.email))
+      batch.set(
+        doc(this.db, 'instructorStudents', rosterDocId),
+        {
+          id: rosterDocId,
+          name: account.fullName,
+          studentId: extras.studentId ?? '',
+          email: account.email,
+          section: extras.section ?? ''
+        },
+        { merge: true }
       );
-      const existingDoc = existingByEmail.docs.find((item) => item.id !== rosterDocId);
-      if (existingDoc) {
-        await setDoc(
-          doc(this.db, 'instructorStudents', existingDoc.id),
-          {
-            name: account.fullName,
-            email: account.email,
-            ...(extras.studentId ? { studentId: extras.studentId } : {}),
-            ...(extras.section ? { section: extras.section } : {})
-          },
-          { merge: true }
-        );
-      } else {
-        await setDoc(
-          rosterRef,
-          {
-            id: rosterDocId,
-            name: account.fullName,
-            studentId: extras.studentId ?? '',
-            email: account.email,
-            section: extras.section ?? ''
-          },
-          { merge: true }
-        );
-      }
       return;
     }
 
     if (account.role === 'instructor' || account.role === 'admin' || account.role === 'superadmin') {
-      await setDoc(
+      batch.set(
         doc(this.db, 'instructorAccounts', `ins-${account.id}`),
         {
           id: `ins-${account.id}`,
@@ -928,5 +926,10 @@ export class StudentApiService {
         { merge: true }
       );
     }
+  }
+
+  private buildAttendanceRecordId(sessionId: string, studentEmail: string): string {
+    const normalizedEmail = studentEmail.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    return `attendance-${sessionId}-${normalizedEmail}`;
   }
 }

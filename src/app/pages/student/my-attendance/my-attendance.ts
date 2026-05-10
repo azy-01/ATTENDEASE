@@ -167,15 +167,31 @@ export class MyAttendanceComponent implements OnDestroy {
   }
 
   async submitAttendance(): Promise<void> {
-    if (!this.studentEmail || !this.studentQrCodeValue || !this.hasActiveSession || this.isSubmitting) {
+    if (this.isSubmitting || !this.hasActiveSession) {
       return;
     }
 
     this.submitError = '';
     this.submitSuccess = '';
 
+    if (!this.studentEmail) {
+      this.submitError = 'Student session is missing. Please sign in again.';
+      return;
+    }
+
+    if (!this.studentQrCodeValue) {
+      this.submitError = 'Your student QR code is not available yet. Please refresh or sign in again.';
+      return;
+    }
+
     if (this.attendanceMethod === 'qr') {
-      const qrCodeValue = this.extractQrCodeValue(this.qrPayloadInput.trim());
+      const payloadInput = this.qrPayloadInput.trim();
+      if (!payloadInput) {
+        this.submitError = 'Scan a QR code first or paste the QR payload before submitting.';
+        return;
+      }
+
+      const qrCodeValue = this.extractQrCodeValue(payloadInput);
       if (!qrCodeValue || qrCodeValue !== this.studentQrCodeValue) {
         this.submitError = 'QR payload does not match your registered QR code.';
         return;

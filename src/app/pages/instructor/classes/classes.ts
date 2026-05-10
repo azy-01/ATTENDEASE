@@ -128,8 +128,24 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
             </div>
             <div class="student-picker">
               <span>Assign Students</span>
+              <label>
+                <span>Section</span>
+                <select [value]="selectedSection" (change)="onSectionChange($event)">
+                  <option value="">Select section</option>
+                  <option *ngFor="let section of sectionOptions()" [value]="section">{{ section }}</option>
+                </select>
+              </label>
+              <label class="student-option select-all-toggle" *ngIf="filteredStudents().length">
+                <input
+                  type="checkbox"
+                  [checked]="areAllVisibleStudentsAssigned()"
+                  [indeterminate]="isSomeVisibleStudentAssigned() && !areAllVisibleStudentsAssigned()"
+                  (change)="toggleAllVisibleStudents($event)"
+                />
+                <span>Select All</span>
+              </label>
               <div class="picker-list" *ngIf="students().length; else noStudents">
-                <label class="student-option" *ngFor="let student of students()">
+                <label class="student-option" *ngFor="let student of filteredStudents()">
                   <input
                     type="checkbox"
                     [checked]="isStudentAssigned(student.id)"
@@ -141,6 +157,9 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
               <ng-template #noStudents>
                 <p class="empty-students">No students available. Add students first.</p>
               </ng-template>
+              <p class="empty-students" *ngIf="students().length && selectedSection && !filteredStudents().length">
+                No students found in this section.
+              </p>
             </div>
           </div>
           <p class="form-error" *ngIf="formError">{{ formError }}</p>
@@ -321,6 +340,11 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
       margin: 0;
       padding: 0;
     }
+    .select-all-toggle {
+      align-items: center;
+      font-weight: 600;
+      margin-top: 2px;
+    }
     .form-error {
       margin: 0;
       padding: 0 16px;
@@ -451,6 +475,7 @@ export class ClassesComponent {
   isEditMode = false;
   editingClassId = '';
   formError = '';
+  selectedSection = '';
   startTimeValue = '08:00';
   endTimeValue = '09:00';
   classDraft: InstructorClass = {
@@ -492,6 +517,7 @@ export class ClassesComponent {
       assignedSubjects: [],
       status: 'active',
     };
+    this.selectedSection = '';
     this.startTimeValue = '08:00';
     this.endTimeValue = '09:00';
   }
@@ -507,6 +533,7 @@ export class ClassesComponent {
       assignedInstructorIds: [...(classItem.assignedInstructorIds ?? [])],
       assignedSubjects: [...(classItem.assignedSubjects ?? [])],
     };
+    this.selectedSection = '';
     this.applyTimeDraftFromClassTime(classItem.time ?? '');
   }
 
@@ -549,6 +576,11 @@ export class ClassesComponent {
   onEndTimeChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.endTimeValue = target.value;
+  }
+
+  onSectionChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    this.selectedSection = target.value.trim();
   }
 
   async saveClass(): Promise<void> {
@@ -626,6 +658,40 @@ export class ClassesComponent {
     };
   }
 
+  toggleAllVisibleStudents(event: Event): void {
+    const checked = (event.target as HTMLInputElement).checked;
+    const current = new Set(this.classDraft.assignedStudentIds ?? []);
+    const visibleStudentIds = this.filteredStudents().map((student) => student.id);
+    if (checked) {
+      visibleStudentIds.forEach((studentId) => current.add(studentId));
+    } else {
+      visibleStudentIds.forEach((studentId) => current.delete(studentId));
+    }
+    this.classDraft = {
+      ...this.classDraft,
+      assignedStudentIds: [...current],
+      studentCount: current.size,
+    };
+  }
+
+  areAllVisibleStudentsAssigned(): boolean {
+    const visibleStudents = this.filteredStudents();
+    if (!visibleStudents.length) {
+      return false;
+    }
+    const assignedIds = new Set(this.classDraft.assignedStudentIds ?? []);
+    return visibleStudents.every((student) => assignedIds.has(student.id));
+  }
+
+  isSomeVisibleStudentAssigned(): boolean {
+    const visibleStudents = this.filteredStudents();
+    if (!visibleStudents.length) {
+      return false;
+    }
+    const assignedIds = new Set(this.classDraft.assignedStudentIds ?? []);
+    return visibleStudents.some((student) => assignedIds.has(student.id));
+  }
+
   isInstructorAssigned(instructorId: string): boolean {
     const assignedInstructorIds = this.classDraft.assignedInstructorIds ?? [];
     return assignedInstructorIds.includes(instructorId);
@@ -672,6 +738,26 @@ export class ClassesComponent {
     return assignedIds
       .map((studentId) => allStudents.find((student) => student.id === studentId))
       .filter((student): student is InstructorStudent => Boolean(student));
+  }
+
+  filteredStudents(): InstructorStudent[] {
+    const allStudents = this.students();
+    const normalizedSection = this.selectedSection.trim().toLowerCase();
+    if (!normalizedSection) {
+      return allStudents;
+    }
+    return allStudents.filter(
+      (student) => (student.section ?? '').trim().toLowerCase() === normalizedSection
+    );
+  }
+
+  sectionOptions(): string[] {
+    const uniqueSections = new Set(
+      this.students()
+        .map((student) => (student.section ?? '').trim())
+        .filter((section) => Boolean(section))
+    );
+    return [...uniqueSections].sort((first, second) => first.localeCompare(second));
   }
 
   getAssignedInstructors(classItem: InstructorClass): AuthAccount[] {

@@ -90,8 +90,14 @@
         <option value="Late">Late</option>
         <option value="Absent">Absent</option>
       </select>
-      <input type="date" [(ngModel)]="fromDate" />
-      <input type="date" [(ngModel)]="toDate" />
+      <label class="date-field">
+        <span>From</span>
+        <input type="date" [(ngModel)]="fromDate" />
+      </label>
+      <label class="date-field">
+        <span>To</span>
+        <input type="date" [(ngModel)]="toDate" />
+      </label>
       <button type="button" (click)="clearFilters()">Clear Filters</button>
     </div>
 

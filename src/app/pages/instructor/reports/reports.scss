@@ -16,6 +16,21 @@
   padding: 12px;
   display: flex;
   gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.date-field span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .filters select,
@@ -196,6 +211,10 @@ th {
   background: #0f172a;
   border-color: #374151;
   color: #e5e7eb;
+}
+
+:host-context(body.dark-mode) .date-field span {
+  color: #94a3b8;
 }
 
 :host-context(body.dark-mode) .stat-card span {

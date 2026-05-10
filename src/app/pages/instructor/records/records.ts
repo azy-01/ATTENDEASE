@@ -27,8 +27,14 @@ interface AttendanceRecord {
           <option value="Late">Late</option>
           <option value="Absent">Absent</option>
         </select>
-        <input type="date" [(ngModel)]="fromDate" />
-        <input type="date" [(ngModel)]="toDate" />
+        <label class="date-field">
+          <span>From</span>
+          <input type="date" [(ngModel)]="fromDate" />
+        </label>
+        <label class="date-field">
+          <span>To</span>
+          <input type="date" [(ngModel)]="toDate" />
+        </label>
         <button type="button" (click)="exportCsv()" [disabled]="!filteredRecords.length">Export</button>
       </div>
 
@@ -72,7 +78,9 @@ interface AttendanceRecord {
     .toolbar, .table-wrap {
       background: #fff; border: 1px solid #edf0f5; border-radius: 12px;
     }
-    .toolbar { display: grid; gap: 10px; padding: 12px; grid-template-columns: 1fr 140px 140px 140px 92px; }
+    .toolbar { display: grid; gap: 10px; padding: 12px; grid-template-columns: 1fr 140px 150px 150px 92px; align-items: end; }
+    .date-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .date-field span { font-size: 11px; color: #6b7280; font-weight: 600; }
     .toolbar input, .toolbar select, .toolbar button {
       height: 38px; border-radius: 8px; border: 1px solid #e5e7eb; padding: 0 12px; font-size: 13px;
       background: #fff; color: #374151;
@@ -110,6 +118,8 @@ interface AttendanceRecord {
       border-color: #374151;
       color: #e5e7eb;
     }
+    :host-context(body.dark-mode) .date-field span,
+    .dark-mode .date-field span { color: #94a3b8; }
     :host-context(body.dark-mode) th,
     :host-context(body.dark-mode) td,
     .dark-mode th,

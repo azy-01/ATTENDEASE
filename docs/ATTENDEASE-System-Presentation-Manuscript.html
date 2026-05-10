@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ATTENDEASE — System Presentation Manuscript</title>
+  <style>
+    @page { margin: 2cm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 11pt;
+      line-height: 1.45;
+      color: #1a1a1a;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 12mm 16mm 20mm;
+    }
+    h1 {
+      font-size: 18pt;
+      border-bottom: 2px solid #0f766e;
+      padding-bottom: 0.35em;
+      margin-top: 0;
+    }
+    h2 {
+      font-size: 13pt;
+      color: #0f766e;
+      margin-top: 1.4em;
+      margin-bottom: 0.5em;
+    }
+    h3 { font-size: 11pt; margin: 1em 0 0.35em; }
+    p { margin: 0.5em 0; }
+    ul, ol { margin: 0.4em 0 0.6em 1.2em; padding-left: 0.9em; }
+    li { margin: 0.25em 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin: 0.6em 0;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.45em 0.55em;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0fdfa; }
+    .meta { font-size: 10pt; color: #444; margin-bottom: 1.2em; }
+    .note {
+      font-size: 10pt;
+      background: #f8fafc;
+      border-left: 4px solid #64748b;
+      padding: 0.65em 0.85em;
+      margin: 1em 0;
+    }
+    @media print {
+      body { padding: 0; }
+      h2 { page-break-after: avoid; }
+      table { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>ATTENDEASE — System Presentation Manuscript</h1>
+  <p class="meta">
+    Laboratory exam: System presentation · Web-based attendance management ·
+    Align with approved project documentation and live demo.
+  </p>
+
+  <h2>1. Introduction</h2>
+  <h3>System title</h3>
+  <p><strong>ATTENDEASE</strong> — Smart Attendance Management System</p>
+
+  <h3>Members and roles</h3>
+  <p><em>Complete the table below with your group’s names and responsibilities.</em></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Role in group</th>
+        <th>System role (for demo)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>[Name]</td><td>[e.g., Team leader, documentation]</td><td>[e.g., Superadmin / Instructor / Student]</td></tr>
+      <tr><td>…</td><td>…</td><td>…</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Overview of the system</h3>
+  <p>
+    ATTENDEASE is a web application for managing classroom attendance. It provides
+    <strong>instructors</strong> with tools to run sessions, manage classes, students, and schedules,
+    and view records and reports (with administrator-level access for selected modules).
+    <strong>Students</strong> can view their schedule, see attendance history, and check in using
+    <strong>QR code scanning</strong>, with a manual fallback where implemented. The public
+    <strong>landing page</strong> presents the product and supports login and sign-up flows. The system uses
+    <strong>role-based access</strong> so each user type sees only the appropriate dashboard.
+  </p>
+
+  <h2>2. Problem Statement</h2>
+  <h3>What problem does the system solve?</h3>
+  <p>
+    Manual attendance (paper lists, spreadsheets, or informal messaging) is slow, error-prone, and
+    difficult to audit. It is hard to track <strong>present / late / absent</strong> status in real time,
+    produce consistent <strong>reports</strong>, and give students a clear view of their own attendance history.
+  </p>
+
+  <h3>Target users</h3>
+  <ul>
+    <li><strong>Instructors / faculty</strong> — take attendance, manage class and student data, review records.</li>
+    <li><strong>Students</strong> — check in for class (e.g., via QR), view schedule and personal attendance.</li>
+    <li><strong>Administrators</strong> (as implemented in routes) — broader access to reports and instructor accounts where <code>admin</code> / <code>superadmin</code> roles are used.</li>
+  </ul>
+
+  <h2>3. Objectives</h2>
+  <h3>General objective</h3>
+  <p>
+    To design and implement a web-based attendance management system that digitizes check-in,
+    centralizes records, and supports reporting for educational settings.
+  </p>
+
+  <h3>Specific objectives</h3>
+  <p><em>Adjust to match what you demonstrate and what your instructor approved.</em></p>
+  <ol>
+    <li>Provide secure, <strong>role-based</strong> access for instructors, students, and admins.</li>
+    <li>Enable <strong>QR-based</strong> (and optional manual) attendance submission for students.</li>
+    <li>Allow instructors to maintain <strong>classes, students, schedules</strong>, and attendance sessions/records.</li>
+    <li>Support <strong>reports and analytics</strong> (and export, if shown in the demo).</li>
+    <li>Deliver a <strong>responsive</strong> UI for desktop and mobile browsers.</li>
+    <li>Persist data via a <strong>REST-style API</strong> (JSON Server for local development; mention Firebase only if the group actually uses it in the final system).</li>
+  </ol>
+
+  <h2>4. System Features</h2>
+  <h3>Core functionalities</h3>
+  <ul>
+    <li>Landing page with feature highlights (QR, dashboards, reports, responsiveness).</li>
+    <li>Authentication session with <strong>route guards</strong> by role: instructor, student, admin, superadmin.</li>
+    <li><strong>Instructor area:</strong> overview, attendance, records, students, classes, schedules, settings, account; instructor management, pending approvals, instructor accounts; reports and instructor-accounts restricted to admin/superadmin.</li>
+    <li><strong>Student area:</strong> overview, schedule, my attendance (QR/manual), QR code display, settings.</li>
+    <li>QR utilities: generation/display and camera-based scanning (e.g., jsQR), per implementation.</li>
+  </ul>
+
+  <h3>Key modules</h3>
+  <table>
+    <thead>
+      <tr><th>Module</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Landing &amp; auth</td><td>Entry, login/sign-up, session</td></tr>
+      <tr><td>Instructor dashboard</td><td>Layout and navigation to instructor features</td></tr>
+      <tr><td>Attendance &amp; records</td><td>Sessions, history, status</td></tr>
+      <tr><td>Classes &amp; students</td><td>Roster and section management</td></tr>
+      <tr><td>Schedules</td><td>Timetable / subject metadata</td></tr>
+      <tr><td>Reports</td><td>Aggregated views (admin)</td></tr>
+      <tr><td>Student dashboard</td><td>Schedule, attendance submission, personal QR</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. System Design</h2>
+  <h3>Architecture</h3>
+  <ul>
+    <li><strong>Client:</strong> Single Page Application — Angular 21, standalone components, TypeScript.</li>
+    <li><strong>API:</strong> HTTP to backend — JSON Server serving <code>db.json</code> in development (REST JSON).</li>
+    <li><strong>Cross-cutting:</strong> RxJS, SweetAlert2, Angular Router and route guards.</li>
+  </ul>
+
+  <h3>UML — Use case (summary)</h3>
+  <ul>
+    <li><strong>Student:</strong> Log in, view schedule, submit attendance (QR/manual), view own records, QR profile as designed.</li>
+    <li><strong>Instructor:</strong> Log in, manage attendance, view/edit records, manage students/classes/schedules, account settings.</li>
+    <li><strong>Admin / Superadmin:</strong> Instructor capabilities where allowed, plus reports, instructor accounts, and approvals per routes.</li>
+  </ul>
+
+  <h3>ERD — Entities (<code>db.json</code>)</h3>
+  <p>Represent as a diagram in your PPT; relationships described below.</p>
+  <ul>
+    <li><strong>students</strong> — id, fullName, email</li>
+    <li><strong>schedules</strong> — id, day, time, subject, meta, mode</li>
+    <li><strong>attendanceRecords</strong> — id, subject, section, date, timeIn, status</li>
+    <li><strong>instructorClasses</strong> — id, name, program, yearLevel, studentCount, status</li>
+    <li><strong>instructorStudents</strong> — id, name, studentId, email, section</li>
+    <li><strong>instructorSchedules</strong> — id, day, time, title, meta, mode</li>
+    <li><strong>instructorSessions</strong> — id, subject, section, date, status</li>
+    <li><strong>instructorAccounts</strong> — id, fullName, email</li>
+  </ul>
+  <p>
+    Students belong to sections; <strong>attendanceRecords</strong> tie subject, section, and date to status;
+    <strong>instructorSessions</strong> represent class meetings; schedules describe when subjects meet.
+  </p>
+
+  <h3>Optional diagrams</h3>
+  <ul>
+    <li>Component or navigation diagram from <code>app.routes.ts</code> (landing → instructor/student layouts → feature pages).</li>
+    <li>Sequence: student scans QR → decode → API request → record stored → confirmation.</li>
+  </ul>
+
+  <h2>6. Live Demonstration (suggested flow)</h2>
+  <ol>
+    <li>Landing page and features; log in as instructor, then as student (or two browsers).</li>
+    <li>Instructor: overview → classes / students → schedules → attendance (session).</li>
+    <li>Student: schedule → attendance → QR scan (or manual code) → confirm record.</li>
+    <li>Admin (if applicable): reports, instructor-accounts.</li>
+    <li>Navigation, logout; optional: wrong-role URL shows guard redirect.</li>
+  </ol>
+  <p>Prepare seeded <code>db.json</code> data and test accounts before the exam.</p>
+
+  <h2>7. Tools &amp; Technologies Used</h2>
+  <table>
+    <thead>
+      <tr><th>Category</th><th>Technology</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Language</td><td>TypeScript</td></tr>
+      <tr><td>Frontend framework</td><td>Angular 21 (standalone components, Router)</td></tr>
+      <tr><td>UI</td><td>HTML, SCSS, SweetAlert2</td></tr>
+      <tr><td>QR</td><td>jsQR, qrcode</td></tr>
+      <tr><td>Data (development)</td><td>JSON Server, db.json</td></tr>
+      <tr><td>Other</td><td>RxJS, Node.js, npm, Angular CLI 21.2.x</td></tr>
+    </tbody>
+  </table>
+  <p><em>Add Firebase or other services only if your group actually uses them in the final demo.</em></p>
+
+  <h2>8. Challenges Encountered</h2>
+  <p><em>Replace with your group’s real experience.</em> Examples:</p>
+  <ul>
+    <li>QR scanning across devices and browsers (permissions, localhost); mitigation: manual code and clear errors.</li>
+    <li>Aligning client session storage with route guards; testing every role’s allowed paths.</li>
+    <li>Prototype backend (JSON Server) vs. production needs (server-side auth); document limitations.</li>
+    <li>Keeping UI state consistent after attendance submission.</li>
+    <li>Scope and time: prioritizing one complete attendance flow and core CRUD.</li>
+  </ul>
+
+  <h2>9. Conclusion &amp; Recommendations</h2>
+  <h3>Conclusion</h3>
+  <p>
+    ATTENDEASE addresses the need for a centralized, role-based attendance system with QR check-in,
+    instructor management features, and student self-service. The project demonstrates SPA development
+    with a REST-style API suitable for pilot use in academic settings.
+  </p>
+
+  <h3>Recommendations</h3>
+  <ul>
+    <li>Move to a production backend with server-side authentication and validation.</li>
+    <li>Add automated tests and audit logs for attendance changes.</li>
+    <li>Consider a mobile app or PWA with offline queue for poor connectivity.</li>
+    <li>Align exports and reports with registrar or institutional formats.</li>
+  </ul>
+
+  <div class="note">
+    <strong>PPT checklist (suggested):</strong> Title · Introduction · Problem &amp; users · Objectives · Features ·
+    Modules/sitemap · Architecture · Use case · ERD · Demo flow · Screenshots · Tech stack · Challenges ·
+    Conclusion · Q&amp;A.
+  </div>
+
+</body>
+</html>

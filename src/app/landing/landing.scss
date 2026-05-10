@@ -187,10 +187,9 @@ nav {
     background: $primary;
     @include flex-center;
 
-    svg {
-        width: 22px;
-        height: 22px;
-        fill: #fff;
+    .material-icons {
+        font-size: 22px;
+        color: #fff;
     }
 }
 

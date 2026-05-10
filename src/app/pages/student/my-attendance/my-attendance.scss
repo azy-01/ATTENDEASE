@@ -269,8 +269,21 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+  align-items: end;
   padding: 12px;
   border-bottom: 1px solid #f0f0f5;
+}
+
+.date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-field span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b7280;
 }
 
 .filters-row select,
@@ -471,6 +484,10 @@
     background: #0f172a;
     border-color: #374151;
     color: #e2e8f0;
+  }
+
+  .date-field span {
+    color: #94a3b8;
   }
 
   .attendance-table th,
