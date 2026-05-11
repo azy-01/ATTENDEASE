@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StudentApiService, type InstructorClass, type InstructorSession } from '../../../core/data/student-api.service';
+import { NotificationService } from '../../../core/data/notification.service';
 
 @Component({
   selector: 'app-attendance',
@@ -39,7 +40,10 @@ export class AttendanceComponent {
 
   readonly recentSessions = signal<InstructorSession[]>([]);
 
-  constructor(private readonly api: StudentApiService) {
+  constructor(
+    private readonly api: StudentApiService,
+    private readonly notifications: NotificationService
+  ) {
     void this.loadSessions();
     void this.loadAllowedSections();
   }
@@ -81,9 +85,17 @@ export class AttendanceComponent {
           const saved = await this.api.addInstructorSession(newSession);
           this.recentSessions.set([saved, ...this.recentSessions()]);
           this.startSuccess = `Session started. Manual code: ${saved.manualAttendanceCode ?? manualAttendanceCode}`;
+          this.notifications.add(
+            'Attendance session started',
+            `${saved.subject} for ${saved.section} is now active.`
+          );
         } catch {
           this.recentSessions.set([newSession, ...this.recentSessions()]);
           this.startSuccess = `Session started. Manual code: ${newSession.manualAttendanceCode ?? manualAttendanceCode}`;
+          this.notifications.add(
+            'Attendance session started',
+            `${newSession.subject} for ${newSession.section} is now active.`
+          );
         }
 
         this.selectedSection = '';

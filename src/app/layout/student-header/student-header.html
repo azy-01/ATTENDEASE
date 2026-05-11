@@ -10,12 +10,43 @@
   </div>
 
   <div class="header-right">
-    <button class="icon-btn" aria-label="Notifications">
+    <button class="icon-btn" aria-label="Notifications" (click)="toggleNotificationMenu($event)">
       <span class="material-icons">notifications</span>
-      <span class="notif-dot"></span>
+      <span class="notif-dot" *ngIf="unreadCount() > 0"></span>
     </button>
-    <button class="avatar-btn" aria-label="Account">
+    <button class="avatar-btn" aria-label="Account" (click)="toggleProfileMenu($event)">
       {{ userInitial }}
     </button>
+
+    <div class="menu-panel notif-menu" *ngIf="notificationMenuOpen" (click)="$event.stopPropagation()">
+      <div class="menu-head">
+        <h3>Notifications</h3>
+        <button type="button" class="ghost-btn" (click)="markAllNotificationsAsRead($event)">Mark all read</button>
+      </div>
+      <div class="notif-list" *ngIf="notifications().length; else noNotifs">
+        <div class="notif-item" *ngFor="let notif of notifications()" [class.unread]="!notif.read">
+          <p class="notif-title">{{ notif.title }}</p>
+          <p class="notif-message">{{ notif.message }}</p>
+        </div>
+      </div>
+      <ng-template #noNotifs>
+        <p class="empty-text">No notifications yet.</p>
+      </ng-template>
+    </div>
+
+    <div class="menu-panel profile-menu" *ngIf="profileMenuOpen" (click)="$event.stopPropagation()">
+      <button type="button" class="menu-item" (click)="navigateTo('/student/settings', $event)">
+        <span class="material-icons">manage_accounts</span>
+        <span>Account & Settings</span>
+      </button>
+      <button type="button" class="menu-item" (click)="toggleTheme($event)">
+        <span class="material-icons">{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span>
+        <span>{{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}</span>
+      </button>
+      <button type="button" class="menu-item danger" (click)="logout($event)">
+        <span class="material-icons">logout</span>
+        <span>Logout</span>
+      </button>
+    </div>
   </div>
 </header>

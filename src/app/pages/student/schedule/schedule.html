@@ -1,21 +1,18 @@
 <div class="schedule-page">
-  <p class="manage-note">Schedules are managed by your instructor.</p>
+  <p class="manage-note">Schedules are managed from assigned classes and are view-only.</p>
 
   <section class="day-group" *ngFor="let group of groupedDays">
     <h3>{{ group.day }}</h3>
 
     <div class="class-row" *ngFor="let item of group.items">
-      <div class="class-left">
-        <span class="material-icons">schedule</span>
+      <div class="class-head">
+        <strong>{{ item.subject }}</strong>
         <span class="time">{{ item.time }}</span>
-        <div>
-          <strong>{{ item.subject }}</strong>
-          <p>{{ item.meta }}</p>
-        </div>
       </div>
-
-      <div class="class-right">
-        <span>{{ item.mode }}</span>
+      <div class="class-details">
+        <span><strong>Instructor:</strong> {{ item.instructorName || 'TBA' }}</span>
+        <span><strong>Room:</strong> {{ item.room || 'N/A' }}</span>
+        <span><strong>Class Mode:</strong> {{ item.classMode || 'N/A' }}</span>
       </div>
     </div>
   </section>

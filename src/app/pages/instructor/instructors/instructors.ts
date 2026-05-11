@@ -117,6 +117,10 @@ export class InstructorsManagementComponent {
 
     const studentId = this.newAccountStudentId().trim();
     const section = this.newAccountSection().trim();
+    if (role === 'student' && !studentId) {
+      this.message.set('Student ID is required for student accounts.');
+      return;
+    }
 
     try {
       await this.api.createManagedAccount({

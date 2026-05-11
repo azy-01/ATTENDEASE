@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
+import { StudentApiService } from '../data/student-api.service';
 
 type UserRole = 'instructor' | 'student' | 'admin' | 'superadmin';
 
@@ -10,6 +11,7 @@ interface AuthSession {
 }
 
 const authSessionStorageKey = 'attendease-auth-session';
+const studentProfileStorageKey = 'student-account-profile';
 
 function readAuthSession(): AuthSession | null {
   const rawSession = localStorage.getItem(authSessionStorageKey);
@@ -30,8 +32,9 @@ function resolveUnauthorizedRedirect(role: UserRole): string {
 }
 
 export function allowRoles(allowedRoles: UserRole[]): CanActivateFn {
-  return () => {
+  return async () => {
     const router = inject(Router);
+    const studentApi = inject(StudentApiService);
     const session = readAuthSession();
 
     if (!session) {
@@ -40,6 +43,13 @@ export function allowRoles(allowedRoles: UserRole[]): CanActivateFn {
 
     if (!allowedRoles.includes(session.role)) {
       return router.createUrlTree([resolveUnauthorizedRedirect(session.role)]);
+    }
+
+    const isSessionValid = await studentApi.isAuthSessionValid(session.role, session.email);
+    if (!isSessionValid) {
+      localStorage.removeItem(authSessionStorageKey);
+      localStorage.removeItem(studentProfileStorageKey);
+      return router.createUrlTree(['/']);
     }
 
     return true;

@@ -18,7 +18,6 @@
     <li><a (click)="scrollTo('features')">Features</a></li>
     <li><a (click)="scrollTo('about')">About</a></li>
     <li><a (click)="scrollTo('faqs')">FAQs</a></li>
-    <li><a (click)="scrollTo('contact')">Contact</a></li>
   </ul>
   <div class="nav-actions">
     <button class="btn-theme" (click)="toggleDarkMode()">
@@ -38,7 +37,6 @@
   <a (click)="scrollTo('features')">Features</a>
   <a (click)="scrollTo('about')">About</a>
   <a (click)="scrollTo('faqs')">FAQs</a>
-  <a (click)="scrollTo('contact')">Contact</a>
   <div class="mobile-menu-actions">
     <button class="btn-outline-lg" (click)="toggleDarkMode()">
       {{ isDarkMode ? 'Light Mode' : 'Dark Mode' }}
@@ -157,38 +155,6 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="faq-a">{{ faq.answer }}</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ CONTACT ══ -->
-<section id="contact" class="contact-section">
-  <div class="section-inner">
-    <div class="contact-grid">
-      <div class="contact-info reveal">
-        <div class="section-label">Contact</div>
-        <h2 class="contact-title">Get in Touch</h2>
-        <p class="contact-desc">Have questions or need help getting started? Reach out to our team and we'll get back to you within 24 hours.</p>
-        <div class="contact-info-item"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>support&#64;attendease.com</div>
-        <div class="contact-info-item"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+63 912 345 6789</div>
-        <div class="contact-info-item"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Manila, Philippines</div>
-      </div>
-      <div class="contact-form reveal">
-        <div class="form-row">
-          <div class="form-group"><label>First Name</label><input type="text" [(ngModel)]="contactForm.firstName" placeholder="Juan"/></div>
-          <div class="form-group"><label>Last Name</label><input type="text" [(ngModel)]="contactForm.lastName" placeholder="Dela Cruz"/></div>
-        </div>
-        <div class="form-group"><label>Email Address</label><input type="email" [(ngModel)]="contactForm.email" placeholder="juan@school.edu.ph"/></div>
-        <div class="form-group">
-          <label>Role</label>
-          <select [(ngModel)]="contactForm.role">
-            <option value="">Select your role</option>
-            <option *ngFor="let r of roleOptions" [value]="r">{{ r }}</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Message</label><textarea [(ngModel)]="contactForm.message" rows="4" placeholder="Tell us how we can help..."></textarea></div>
-        <button class="btn-submit" (click)="onSubmitContact()">Send Message</button>
       </div>
     </div>
   </div>

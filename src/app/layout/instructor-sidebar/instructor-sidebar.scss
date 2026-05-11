@@ -108,22 +108,6 @@
     }
 }
 
-.sidebar-bottom {
-    padding: 12px 0;
-    border-top: 1px solid #f0f0f5;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.logout-btn {
-    color: #ef4444 !important;
-
-    &:hover {
-        background: #fef2f2 !important;
-    }
-}
-
 @media (max-width: 768px) {
     .instructor-sidebar {
         position: fixed;

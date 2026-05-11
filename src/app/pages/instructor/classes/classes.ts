@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
 import { StudentApiService, type AuthAccount, type InstructorClass, type InstructorStudent } from '../../../core/data/student-api.service';
+import { NotificationService } from '../../../core/data/notification.service';
 
 @Component({
   selector: 'app-classes',
@@ -20,6 +21,7 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
           </div>
           <p>{{ classItem.program }} • {{ classItem.yearLevel }}</p>
           <p class="class-schedule">{{ classItem.day || 'No day set' }} • {{ classItem.time || 'No time set' }}</p>
+          <p class="class-extra">{{ classItem.classMode || 'No class mode set' }} • Room: {{ classItem.room || 'N/A' }}</p>
           <small>{{ classItem.studentCount }} students</small>
           <div class="student-list">
             <strong>Assigned Instructors</strong>
@@ -39,16 +41,8 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
               <p class="empty-students">No subjects assigned yet.</p>
             </ng-template>
           </div>
-          <div class="student-list">
-            <strong>Current Students</strong>
-            <ul *ngIf="getAssignedStudents(classItem).length; else noAssignedStudents">
-              <li *ngFor="let student of getAssignedStudents(classItem)">{{ student.name }}</li>
-            </ul>
-            <ng-template #noAssignedStudents>
-              <p class="empty-students">No students assigned yet.</p>
-            </ng-template>
-          </div>
           <div class="actions">
+            <button type="button" class="btn-secondary" (click)="openStudentsView(classItem)">View</button>
             <button type="button" *ngIf="isAdmin" (click)="editClass(classItem)">Edit</button>
             <button type="button" *ngIf="isAdmin" class="danger" (click)="deleteClass(classItem)">Delete</button>
           </div>
@@ -97,6 +91,18 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
                 <input type="time" [value]="endTimeValue" (input)="onEndTimeChange($event)" />
               </div>
             </label>
+            <label>
+              <span>Class Mode</span>
+              <select [value]="classDraft.classMode || ''" (change)="onClassModeChange($event)">
+                <option value="">Select class mode</option>
+                <option value="Face-to-face Class">Face-to-face Class</option>
+                <option value="Online Class">Online Class</option>
+              </select>
+            </label>
+            <label>
+              <span>Room</span>
+              <input type="text" [value]="classDraft.room || ''" (input)="onDraftFieldChange('room', $event)" placeholder="Room 201 / Google Meet" />
+            </label>
             <div class="student-picker" *ngIf="isAdmin">
               <span>Assign Instructors</span>
               <div class="picker-list" *ngIf="instructors().length; else noInstructors">
@@ -115,25 +121,26 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
             </div>
             <div class="student-picker" *ngIf="isAdmin">
               <span>Assign Subjects</span>
-              <div class="picker-list">
-                <label class="student-option" *ngFor="let subject of subjectOptions">
-                  <input
-                    type="checkbox"
-                    [checked]="isSubjectAssigned(subject)"
-                    (change)="toggleSubjectAssignment(subject, $event)"
-                  />
-                  <span>{{ subject }}</span>
-                </label>
-              </div>
+              <label>
+                <span>Assign Subject</span>
+                <input
+                  type="text"
+                  [value]="assignedSubjectsInput"
+                  (input)="onSubjectInputChange($event)"
+                  placeholder="Programming, Database Management"
+                />
+              </label>
             </div>
             <div class="student-picker">
               <span>Assign Students</span>
               <label>
                 <span>Section</span>
-                <select [value]="selectedSection" (change)="onSectionChange($event)">
-                  <option value="">Select section</option>
-                  <option *ngFor="let section of sectionOptions()" [value]="section">{{ section }}</option>
-                </select>
+                <input
+                  type="text"
+                  [value]="selectedSection"
+                  (input)="onSectionChange($event)"
+                  placeholder="Type section to auto-filter students"
+                />
               </label>
               <label class="student-option select-all-toggle" *ngIf="filteredStudents().length">
                 <input
@@ -172,6 +179,26 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
           </div>
         </div>
       </div>
+
+      <div class="modal-backdrop" *ngIf="isStudentsViewOpen" (click)="closeStudentsView()">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Assigned students" (click)="$event.stopPropagation()">
+          <div class="modal-head">
+            <h3>Assigned Students - {{ viewingClassName }}</h3>
+            <button type="button" class="icon-close" (click)="closeStudentsView()" aria-label="Close students view modal">×</button>
+          </div>
+          <div class="modal-body view-students-body">
+            <ul *ngIf="viewingStudents.length; else noViewStudents">
+              <li *ngFor="let student of viewingStudents">{{ student.name }} ({{ student.studentId || 'No Student ID' }}) - {{ student.section || 'No section' }}</li>
+            </ul>
+            <ng-template #noViewStudents>
+              <p class="empty-students">No students assigned yet.</p>
+            </ng-template>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-primary" (click)="closeStudentsView()">Close</button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -196,11 +223,13 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
     .head span { font-size: 11px; color: #15803d; background: #dcfce7; border-radius: 999px; padding: 2px 10px; }
     p { margin: 0; font-size: 13px; color: #6b7280; }
     .class-schedule { margin-top: 6px; font-weight: 600; color: #374151; }
+    .class-extra { margin-top: 4px; font-size: 12px; color: #6b7280; }
     small { color: #9ca3af; display: inline-block; margin-top: 8px; }
     .actions { display: flex; gap: 8px; margin-top: 14px; }
     .actions button {
       flex: 1; height: 34px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; cursor: pointer;
     }
+    .actions button.btn-secondary { color: #374151; }
     .actions button.danger { color: #dc2626; border-color: #fecaca; }
     .student-list {
       margin-top: 12px;
@@ -378,6 +407,20 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
       background: #4f46e5;
       color: #fff;
     }
+    .view-students-body {
+      display: block;
+    }
+    .view-students-body ul {
+      margin: 0;
+      padding-left: 18px;
+      max-height: 320px;
+      overflow: auto;
+    }
+    .view-students-body li {
+      font-size: 13px;
+      color: #374151;
+      margin-bottom: 6px;
+    }
     @media (max-width: 680px) {
       .modal-body { grid-template-columns: 1fr; }
       .time-range { grid-template-columns: 1fr 14px 1fr; gap: 6px; }
@@ -398,6 +441,8 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
     .dark-mode .student-list strong { color: #cbd5e1; }
     :host-context(body.dark-mode) .student-list,
     .dark-mode .student-list { border-color: #1f2937; }
+    :host-context(body.dark-mode) .class-extra,
+    .dark-mode .class-extra { color: #94a3b8; }
     :host-context(body.dark-mode) small,
     .dark-mode small { color: #64748b; }
     :host-context(body.dark-mode) .actions button,
@@ -448,22 +493,12 @@ import { StudentApiService, type AuthAccount, type InstructorClass, type Instruc
     .dark-mode .empty-students { color: #94a3b8; }
     :host-context(body.dark-mode) .form-error,
     .dark-mode .form-error { color: #fca5a5; }
+    :host-context(body.dark-mode) .view-students-body li,
+    .dark-mode .view-students-body li { color: #cbd5e1; }
   `],
 })
 export class ClassesComponent {
   private readonly authSessionStorageKey = 'attendease-auth-session';
-  readonly subjectOptions: string[] = [
-    'Ethics',
-    'Mathematics',
-    'Science',
-    'English',
-    'Filipino',
-    'Programming',
-    'Networking',
-    'Database Management',
-    'Web Development',
-    'Capstone Project',
-  ];
   readonly classes = signal<InstructorClass[]>([]);
   readonly weekdays: string[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
   readonly students = signal<InstructorStudent[]>([]);
@@ -476,6 +511,9 @@ export class ClassesComponent {
   editingClassId = '';
   formError = '';
   selectedSection = '';
+  isStudentsViewOpen = false;
+  viewingClassName = '';
+  viewingStudents: InstructorStudent[] = [];
   startTimeValue = '08:00';
   endTimeValue = '09:00';
   classDraft: InstructorClass = {
@@ -483,8 +521,11 @@ export class ClassesComponent {
     name: '',
     program: '',
     yearLevel: '',
+    section: '',
     day: '',
     time: '',
+    room: '',
+    classMode: undefined,
     studentCount: 0,
     assignedStudentIds: [],
     assignedInstructorIds: [],
@@ -492,7 +533,10 @@ export class ClassesComponent {
     status: 'active',
   };
 
-  constructor(private readonly api: StudentApiService) {
+  constructor(
+    private readonly api: StudentApiService,
+    private readonly notifications: NotificationService
+  ) {
     this.resolveSessionRole();
     void this.loadClasses();
     void this.loadStudents();
@@ -509,8 +553,11 @@ export class ClassesComponent {
       name: '',
       program: '',
       yearLevel: '',
+      section: '',
       day: '',
       time: '',
+      room: '',
+      classMode: undefined,
       studentCount: 0,
       assignedStudentIds: [],
       assignedInstructorIds: [],
@@ -533,7 +580,7 @@ export class ClassesComponent {
       assignedInstructorIds: [...(classItem.assignedInstructorIds ?? [])],
       assignedSubjects: [...(classItem.assignedSubjects ?? [])],
     };
-    this.selectedSection = '';
+    this.selectedSection = classItem.section ?? '';
     this.applyTimeDraftFromClassTime(classItem.time ?? '');
   }
 
@@ -544,7 +591,7 @@ export class ClassesComponent {
     this.formError = '';
   }
 
-  onDraftFieldChange(field: 'name' | 'program' | 'yearLevel', event: Event): void {
+  onDraftFieldChange(field: 'name' | 'program' | 'yearLevel' | 'room', event: Event): void {
     const target = event.target as HTMLInputElement;
     this.classDraft = {
       ...this.classDraft,
@@ -568,6 +615,15 @@ export class ClassesComponent {
     };
   }
 
+  onClassModeChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    const classMode = target.value.trim();
+    this.classDraft = {
+      ...this.classDraft,
+      classMode: classMode === 'Face-to-face Class' || classMode === 'Online Class' ? classMode : undefined,
+    };
+  }
+
   onStartTimeChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.startTimeValue = target.value;
@@ -579,8 +635,29 @@ export class ClassesComponent {
   }
 
   onSectionChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    this.selectedSection = target.value.trim();
+    const target = event.target as HTMLInputElement;
+    const section = target.value.trim();
+    this.selectedSection = section;
+    this.classDraft = {
+      ...this.classDraft,
+      section,
+    };
+  }
+
+  onSubjectInputChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const assignedSubjects = target.value
+      .split(',')
+      .map((subject) => subject.trim())
+      .filter((subject) => Boolean(subject));
+    this.classDraft = {
+      ...this.classDraft,
+      assignedSubjects: [...new Set(assignedSubjects)],
+    };
+  }
+
+  get assignedSubjectsInput(): string {
+    return (this.classDraft.assignedSubjects ?? []).join(', ');
   }
 
   async saveClass(): Promise<void> {
@@ -592,8 +669,11 @@ export class ClassesComponent {
       name: this.classDraft.name.trim(),
       program: this.classDraft.program.trim(),
       yearLevel: this.classDraft.yearLevel.trim(),
+      section: (this.classDraft.section ?? '').trim(),
       day: (this.classDraft.day ?? '').trim(),
       time: this.buildClassTimeRange(),
+      room: (this.classDraft.room ?? '').trim(),
+      classMode: this.classDraft.classMode,
       assignedStudentIds,
       assignedInstructorIds,
       assignedSubjects,
@@ -617,9 +697,11 @@ export class ClassesComponent {
       try {
         const created = await this.api.addInstructorClass(newClass);
         this.classes.set([...this.classes(), created]);
+        this.notifications.add('Class created', `${created.name} was created successfully.`);
         await this.syncInstructorAllowedClasses();
       } catch {
         this.classes.set([...this.classes(), newClass]);
+        this.notifications.add('Class created', `${newClass.name} was created successfully.`);
       }
       this.closeModal();
       return;
@@ -630,11 +712,13 @@ export class ClassesComponent {
       this.classes.set(
         this.classes().map((row) => (row.id !== this.editingClassId ? row : updated))
       );
+      this.notifications.add('Class updated', `${updated.name} was updated.`);
       await this.syncInstructorAllowedClasses();
     } catch {
       this.classes.set(
         this.classes().map((row) => (row.id !== this.editingClassId ? row : draft))
       );
+      this.notifications.add('Class updated', `${draft.name} was updated.`);
     }
     this.closeModal();
   }
@@ -711,24 +795,6 @@ export class ClassesComponent {
     };
   }
 
-  isSubjectAssigned(subject: string): boolean {
-    return (this.classDraft.assignedSubjects ?? []).includes(subject);
-  }
-
-  toggleSubjectAssignment(subject: string, event: Event): void {
-    const checked = (event.target as HTMLInputElement).checked;
-    const current = new Set(this.classDraft.assignedSubjects ?? []);
-    if (checked) {
-      current.add(subject);
-    } else {
-      current.delete(subject);
-    }
-    this.classDraft = {
-      ...this.classDraft,
-      assignedSubjects: [...current],
-    };
-  }
-
   getAssignedStudents(classItem: InstructorClass): InstructorStudent[] {
     const assignedIds = classItem.assignedStudentIds ?? [];
     if (!assignedIds.length) {
@@ -749,15 +815,6 @@ export class ClassesComponent {
     return allStudents.filter(
       (student) => (student.section ?? '').trim().toLowerCase() === normalizedSection
     );
-  }
-
-  sectionOptions(): string[] {
-    const uniqueSections = new Set(
-      this.students()
-        .map((student) => (student.section ?? '').trim())
-        .filter((section) => Boolean(section))
-    );
-    return [...uniqueSections].sort((first, second) => first.localeCompare(second));
   }
 
   getAssignedInstructors(classItem: InstructorClass): AuthAccount[] {
@@ -797,6 +854,18 @@ export class ClassesComponent {
     }
     this.classes.set(this.classes().filter((row) => row.id !== classItem.id));
     await this.syncInstructorAllowedClasses();
+  }
+
+  openStudentsView(classItem: InstructorClass): void {
+    this.viewingClassName = classItem.name;
+    this.viewingStudents = this.getAssignedStudents(classItem);
+    this.isStudentsViewOpen = true;
+  }
+
+  closeStudentsView(): void {
+    this.isStudentsViewOpen = false;
+    this.viewingClassName = '';
+    this.viewingStudents = [];
   }
 
   private createClassId(): string {

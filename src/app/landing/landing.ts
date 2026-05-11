@@ -28,14 +28,6 @@ export interface FaqItem {
   isOpen: boolean;
 }
 
-export interface ContactForm {
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: string;
-  message: string;
-}
-
 export interface Toast {
   message: string;
   color: string;
@@ -124,10 +116,6 @@ export class LandingComponent implements OnInit, OnDestroy {
     { question: 'What roles are available in the system?', answer: 'AttendEase supports three roles: Administrator (full system access), Instructor (session management and reports), and Student (attendance viewing and QR scanning). Roles can be assigned by the admin.', isOpen: false },
   ];
 
-  // ── Contact ───────────────────────────────────────────────
-  contactForm: ContactForm = { firstName: '', lastName: '', email: '', role: '', message: '' };
-  roleOptions = ['Instructor', 'Student', 'Administrator', 'Superadmin'];
-
   // ── Toast ─────────────────────────────────────────────────
   toast: Toast | null = null;
   private toastTimer: any;
@@ -199,13 +187,6 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (this.toastTimer) clearTimeout(this.toastTimer);
     this.toast = { message, color, shadow };
     this.toastTimer = setTimeout(() => (this.toast = null), 3500);
-  }
-
-  // ── Contact submit ────────────────────────────────────────
-  onSubmitContact(): void {
-    if (!this.contactForm.email) { alert('Please enter your email address.'); return; }
-    this.showToast("✅ Message sent! We'll get back to you soon.", '#10B981', 'rgba(16,185,129,.4)');
-    this.contactForm = { firstName: '', lastName: '', email: '', role: '', message: '' };
   }
 
   getBadgeClass(status: string): string { return `badge badge-${status}`; }

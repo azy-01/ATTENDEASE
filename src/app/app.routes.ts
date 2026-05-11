@@ -30,7 +30,7 @@ export const routes: Routes = [
         canActivateChild: [allowRolesForChildren(['instructor', 'admin', 'superadmin'])],
         children: [
             { path: 'overview', component: OverviewComponent },
-            { path: 'attendance', component: AttendanceComponent },
+            { path: 'attendance', component: AttendanceComponent, canActivate: [allowRoles(['instructor'])] },
             { path: 'records', component: RecordsComponent },
             { path: 'students', component: StudentsComponent },
             { path: 'classes', component: ClassesComponent },

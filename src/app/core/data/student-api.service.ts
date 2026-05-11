@@ -20,8 +20,20 @@ export interface ScheduleItem {
   day: string;
   time: string;
   subject: string;
-  meta: string;
-  mode: 'Face-To-Face' | 'Online';
+  instructorName: string;
+  room: string;
+  classMode: string;
+}
+
+export interface InstructorScheduleViewItem {
+  day: string;
+  time: string;
+  subject: string;
+  program: string;
+  yearLevel: string;
+  section: string;
+  room: string;
+  classMode: string;
 }
 
 export interface AttendanceRecord {
@@ -48,8 +60,11 @@ export interface InstructorClass {
   name: string;
   program: string;
   yearLevel: string;
+  section?: string;
   day?: string;
   time?: string;
+  room?: string;
+  classMode?: 'Face-to-face Class' | 'Online Class';
   studentCount: number;
   assignedStudentIds?: string[];
   assignedInstructorIds?: string[];
@@ -267,6 +282,16 @@ export class StudentApiService {
     if (existingByName) {
       throw new Error('Account already exists for this role and full name.');
     }
+    const normalizedStudentId = (payload.studentId ?? '').trim();
+    if (payload.role === 'student') {
+      if (!normalizedStudentId) {
+        throw new Error('Student ID is required for student accounts.');
+      }
+      const existingByStudentId = await this.findInstructorStudentByStudentId(normalizedStudentId);
+      if (existingByStudentId) {
+        throw new Error('Student account already exists for this Student ID.');
+      }
+    }
 
     const id = doc(collection(this.db, 'authAccounts')).id;
     const nextAccount: AuthAccount = {
@@ -286,7 +311,7 @@ export class StudentApiService {
     const batch = writeBatch(this.db);
     batch.set(doc(this.db, 'authAccounts', id), nextAccount);
     this.queueRoleCollectionSync(batch, nextAccount, {
-      studentId: payload.studentId?.trim() || '',
+      studentId: normalizedStudentId,
       section: payload.section?.trim() || ''
     });
     await batch.commit();
@@ -309,6 +334,10 @@ export class StudentApiService {
     if (account.approvalStatus !== 'approved') {
       return null;
     }
+    const hasLinkedProfile = await this.hasLinkedRoleProfile(account);
+    if (!hasLinkedProfile) {
+      return null;
+    }
     if (account.qrCodeValue) {
       return account;
     }
@@ -325,6 +354,21 @@ export class StudentApiService {
       await this.syncInstructorQrCodeByEmail(account.email, withQrCode.qrCodeValue);
     }
     return withQrCode;
+  }
+
+  async isAuthSessionValid(
+    role: 'instructor' | 'student' | 'admin' | 'superadmin',
+    email: string
+  ): Promise<boolean> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return false;
+    }
+    const account = await this.findAuthAccountByEmail(role, normalizedEmail);
+    if (!account || account.approvalStatus !== 'approved') {
+      return false;
+    }
+    return this.hasLinkedRoleProfile(account);
   }
 
   async getPendingAccounts(): Promise<AuthAccount[]> {
@@ -509,18 +553,108 @@ export class StudentApiService {
     return deleteDoc(doc(this.db, 'instructorStudents', id));
   }
 
+  async deleteManagedAccountByEmail(
+    role: 'instructor' | 'student' | 'admin' | 'superadmin',
+    email: string
+  ): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return;
+    }
+
+    const authRef = collection(this.db, 'authAccounts');
+    const authQuery = query(authRef, where('role', '==', role), where('email', '==', normalizedEmail));
+    const authSnapshot = await getDocs(authQuery);
+    const batch = writeBatch(this.db);
+
+    authSnapshot.docs.forEach((accountDoc) => {
+      batch.delete(doc(this.db, 'authAccounts', accountDoc.id));
+    });
+
+    if (role === 'student') {
+      const [studentsSnapshot, instructorStudentsSnapshot, classSnapshot] = await Promise.all([
+        getDocs(query(collection(this.db, 'students'), where('email', '==', normalizedEmail))),
+        getDocs(query(collection(this.db, 'instructorStudents'), where('email', '==', normalizedEmail))),
+        getDocs(collection(this.db, 'instructorClasses'))
+      ]);
+
+      studentsSnapshot.docs.forEach((studentDoc) => {
+        batch.delete(doc(this.db, 'students', studentDoc.id));
+      });
+
+      const removedStudentIds = new Set<string>();
+      instructorStudentsSnapshot.docs.forEach((studentDoc) => {
+        removedStudentIds.add(studentDoc.id);
+        batch.delete(doc(this.db, 'instructorStudents', studentDoc.id));
+      });
+
+      if (removedStudentIds.size) {
+        classSnapshot.docs.forEach((classDoc) => {
+          const classData = classDoc.data() as Partial<InstructorClass>;
+          const assignedStudentIds = classData.assignedStudentIds ?? [];
+          const nextAssignedStudentIds = assignedStudentIds.filter(
+            (studentId) => !removedStudentIds.has(studentId)
+          );
+          if (nextAssignedStudentIds.length !== assignedStudentIds.length) {
+            batch.set(doc(this.db, 'instructorClasses', classDoc.id), {
+              assignedStudentIds: nextAssignedStudentIds,
+              studentCount: nextAssignedStudentIds.length
+            }, { merge: true });
+          }
+        });
+      }
+    }
+
+    if (role === 'instructor' || role === 'admin' || role === 'superadmin') {
+      const instructorsSnapshot = await getDocs(
+        query(collection(this.db, 'instructorAccounts'), where('email', '==', normalizedEmail))
+      );
+      instructorsSnapshot.docs.forEach((accountDoc) => {
+        batch.delete(doc(this.db, 'instructorAccounts', accountDoc.id));
+      });
+    }
+
+    await batch.commit();
+  }
+
   getInstructorSchedules(): Promise<InstructorSchedule[]> {
     return this.listCollection<InstructorSchedule>('instructorSchedules');
+  }
+
+  async getInstructorScheduleByEmail(email: string): Promise<InstructorScheduleViewItem[]> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return [];
+
+    const [account, classes] = await Promise.all([
+      this.getAuthAccountByEmail('instructor', normalizedEmail),
+      this.getInstructorClasses()
+    ]);
+    if (!account) return [];
+
+    return classes
+      .filter((classItem) => (classItem.assignedInstructorIds ?? []).includes(account.id))
+      .flatMap((classItem) =>
+        this.getClassSubjects(classItem).map((subject) => ({
+          subject,
+          program: classItem.program ?? '',
+          yearLevel: classItem.yearLevel ?? '',
+          section: classItem.section?.trim() || classItem.name || '',
+          time: classItem.time ?? '',
+          day: classItem.day ?? '',
+          room: classItem.room?.trim() || 'N/A',
+          classMode: classItem.classMode ?? 'N/A'
+        }))
+      );
   }
 
   async getStudentSchedulesByEmail(email: string): Promise<ScheduleItem[]> {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) return [];
 
-    const [students, classes, schedules] = await Promise.all([
+    const [students, classes, instructors] = await Promise.all([
       this.getInstructorStudents(),
       this.getInstructorClasses(),
-      this.getInstructorSchedules()
+      this.getAuthAccountsByRole('instructor')
     ]);
 
     const student = students.find(
@@ -531,42 +665,24 @@ export class StudentApiService {
     const assignedClasses = classes.filter((classItem) =>
       (classItem.assignedStudentIds ?? []).includes(student.id)
     );
-    const assignedClassNames = new Set(
-      assignedClasses
-        .map((classItem) => (classItem.name ?? '').trim().toLowerCase())
-        .filter((name) => Boolean(name))
+    const instructorNameById = new Map(
+      instructors.map((instructor) => [instructor.id, instructor.fullName])
     );
-    const assignedSubjects = new Set(
-      assignedClasses
-        .flatMap((classItem) => classItem.assignedSubjects ?? [])
-        .map((subject) => subject.trim().toLowerCase())
-        .filter((subject) => Boolean(subject))
-    );
-    const fallbackStudentSection = (student.section ?? '').trim().toLowerCase();
 
-    return schedules
-      .filter((item) => {
-        const scheduleSection = (item.section ?? '').trim().toLowerCase();
-        const scheduleSubject = (item.title ?? '').trim().toLowerCase();
-        const sectionMatches = assignedClassNames.size > 0
-          ? assignedClassNames.has(scheduleSection)
-          : fallbackStudentSection
-            ? scheduleSection === fallbackStudentSection
-            : false;
-        if (!sectionMatches) {
-          return false;
-        }
-        return assignedSubjects.size > 0
-          ? assignedSubjects.has(scheduleSubject)
-          : true;
-      })
-      .map((item) => ({
-        day: item.day,
-        time: item.time,
-        subject: item.title,
-        meta: `${item.section ?? ''} - ${item.meta}`,
-        mode: item.mode
+    return assignedClasses.flatMap((classItem) => {
+      const firstInstructorName = (classItem.assignedInstructorIds ?? [])
+        .map((instructorId) => instructorNameById.get(instructorId)?.trim() ?? '')
+        .find((name) => Boolean(name)) || 'TBA';
+
+      return this.getClassSubjects(classItem).map((subject) => ({
+        day: classItem.day ?? '',
+        time: classItem.time ?? '',
+        subject,
+        instructorName: firstInstructorName,
+        room: classItem.room?.trim() || 'N/A',
+        classMode: classItem.classMode ?? 'N/A'
       }));
+    });
   }
 
   addInstructorSchedule(payload: InstructorSchedule): Promise<InstructorSchedule> {
@@ -804,6 +920,17 @@ export class StudentApiService {
     ) ?? null;
   }
 
+  private async findInstructorStudentByStudentId(studentId: string): Promise<InstructorStudent | null> {
+    const normalizedStudentId = studentId.trim().toLowerCase();
+    if (!normalizedStudentId) {
+      return null;
+    }
+    const students = await this.getInstructorStudents();
+    return students.find(
+      (student) => (student.studentId ?? '').trim().toLowerCase() === normalizedStudentId
+    ) ?? null;
+  }
+
   private async getAuthAccountById(id: string): Promise<AuthAccount | null> {
     const authRef = collection(this.db, 'authAccounts');
     const authQuery = query(authRef, where('id', '==', id));
@@ -931,5 +1058,38 @@ export class StudentApiService {
   private buildAttendanceRecordId(sessionId: string, studentEmail: string): string {
     const normalizedEmail = studentEmail.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
     return `attendance-${sessionId}-${normalizedEmail}`;
+  }
+
+  private async hasLinkedRoleProfile(account: AuthAccount): Promise<boolean> {
+    const normalizedEmail = account.email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return false;
+    }
+
+    if (account.role === 'student') {
+      const studentsSnapshot = await getDocs(
+        query(collection(this.db, 'students'), where('email', '==', normalizedEmail))
+      );
+      return studentsSnapshot.docs.length > 0;
+    }
+
+    if (account.role === 'admin' || account.role === 'superadmin') {
+      return true;
+    }
+
+    const instructorsSnapshot = await getDocs(
+      query(collection(this.db, 'instructorAccounts'), where('email', '==', normalizedEmail))
+    );
+    return instructorsSnapshot.docs.length > 0;
+  }
+
+  private getClassSubjects(classItem: InstructorClass): string[] {
+    const normalizedSubjects = (classItem.assignedSubjects ?? [])
+      .map((subject) => subject.trim())
+      .filter((subject) => Boolean(subject));
+    if (normalizedSubjects.length) {
+      return [...new Set(normalizedSubjects)];
+    }
+    return [classItem.name?.trim() || 'Untitled Subject'];
   }
 }

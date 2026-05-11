@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
 import { StudentApiService, type InstructorStudent } from '../../../core/data/student-api.service';
+import { NotificationService } from '../../../core/data/notification.service';
 
 @Component({
   selector: 'app-students',
@@ -284,7 +285,7 @@ export class StudentsComponent {
   searchTerm = '';
   isEditModalOpen = false;
   isAddModalOpen = false;
-  editingStudentId = '';
+  editingStudentRecordId = '';
   editDraft: InstructorStudent = {
     id: '',
     name: '',
@@ -300,7 +301,10 @@ export class StudentsComponent {
     section: '',
   };
 
-  constructor(private readonly api: StudentApiService) {
+  constructor(
+    private readonly api: StudentApiService,
+    private readonly notifications: NotificationService
+  ) {
     this.resolveSession();
     void this.loadStudents();
   }
@@ -344,8 +348,10 @@ export class StudentsComponent {
     try {
       const created = await this.api.addInstructorStudent(newStudent);
       this.students.set([...this.students(), created]);
+      this.notifications.add('Student added', `${created.name} was added to ${created.section}.`);
     } catch {
       this.students.set([...this.students(), newStudent]);
+      this.notifications.add('Student added', `${newStudent.name} was added to ${newStudent.section}.`);
     }
     this.closeAddModal();
   }
@@ -374,13 +380,13 @@ export class StudentsComponent {
 
   editStudent(student: InstructorStudent): void {
     this.isEditModalOpen = true;
-    this.editingStudentId = student.studentId;
+    this.editingStudentRecordId = student.id;
     this.editDraft = { ...student };
   }
 
   closeEditModal(): void {
     this.isEditModalOpen = false;
-    this.editingStudentId = '';
+    this.editingStudentRecordId = '';
     this.editDraft = { id: '', name: '', studentId: '', email: '', section: '' };
   }
 
@@ -393,11 +399,11 @@ export class StudentsComponent {
   }
 
   async saveEditedStudent(): Promise<void> {
-    if (!this.editingStudentId) {
+    if (!this.editingStudentRecordId) {
       return;
     }
 
-    const current = this.students().find((student) => student.studentId === this.editingStudentId);
+    const current = this.students().find((student) => student.id === this.editingStudentRecordId);
     if (!current) return;
 
     const updatedDraft = { ...this.editDraft, id: current.id };
@@ -405,15 +411,17 @@ export class StudentsComponent {
       const updated = await this.api.updateInstructorStudent(current.id, updatedDraft);
       this.students.set(
         this.students().map((student) =>
-          student.studentId !== this.editingStudentId ? student : updated
+          student.id !== this.editingStudentRecordId ? student : updated
         )
       );
+      this.notifications.add('Student updated', `${updated.name}'s profile was updated.`);
     } catch {
       this.students.set(
         this.students().map((student) =>
-          student.studentId !== this.editingStudentId ? student : updatedDraft
+          student.id !== this.editingStudentRecordId ? student : updatedDraft
         )
       );
+      this.notifications.add('Student updated', `${updatedDraft.name}'s profile was updated.`);
     }
 
     this.closeEditModal();
@@ -439,9 +447,14 @@ export class StudentsComponent {
     }
 
     try {
-      await this.api.deleteInstructorStudent(student.id);
+      await this.api.deleteManagedAccountByEmail('student', student.email);
     } catch {
-      // Keep UI update as fallback.
+      // Fallback: still remove the roster entry when linked auth account deletion fails.
+      try {
+        await this.api.deleteInstructorStudent(student.id);
+      } catch {
+        // Keep UI update as fallback.
+      }
     }
     this.students.set(this.students().filter((row) => row.id !== student.id));
   }

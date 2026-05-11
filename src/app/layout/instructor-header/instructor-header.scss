@@ -63,6 +63,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    position: relative;
 }
 
 .icon-btn {
@@ -119,6 +120,103 @@
     }
 }
 
+.menu-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 280px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+    z-index: 20;
+}
+
+.profile-menu {
+    width: 220px;
+    overflow: hidden;
+}
+
+.menu-item {
+    width: 100%;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    color: #374151;
+    cursor: pointer;
+
+    .material-icons {
+        font-size: 19px;
+    }
+
+    &:hover {
+        background: #f3f4f6;
+    }
+
+    &.danger {
+        color: #dc2626;
+    }
+}
+
+.menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #eef2f7;
+
+    h3 {
+        margin: 0;
+        font-size: 14px;
+        color: #111827;
+    }
+}
+
+.ghost-btn {
+    border: none;
+    background: transparent;
+    color: #4f46e5;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.notif-list {
+    max-height: 260px;
+    overflow: auto;
+}
+
+.notif-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+
+    &.unread {
+        background: #f5f3ff;
+    }
+}
+
+.notif-title {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.notif-message {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.empty-text {
+    margin: 0;
+    padding: 14px 12px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
 @media (max-width: 768px) {
     .menu-toggle {
         display: flex;
@@ -159,5 +257,43 @@
 
     .notif-dot {
         border-color: #111827;
+    }
+
+    .menu-panel {
+        background: #111827;
+        border-color: #374151;
+    }
+
+    .menu-item {
+        color: #cbd5e1;
+
+        &:hover {
+            background: #1f2937;
+        }
+    }
+
+    .notif-item {
+        border-bottom-color: #1f2937;
+
+        &.unread {
+            background: #1f1b45;
+        }
+    }
+
+    .notif-title {
+        color: #e5e7eb;
+    }
+
+    .notif-message,
+    .empty-text {
+        color: #94a3b8;
+    }
+
+    .menu-head {
+        border-bottom-color: #1f2937;
+
+        h3 {
+            color: #e5e7eb;
+        }
     }
 }
