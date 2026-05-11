@@ -98,6 +98,8 @@ export interface InstructorSession {
   status: 'active' | 'completed' | 'cancelled';
   manualAttendanceCode?: string;
   startedAt?: string;
+  /** Auth account id (`authAccounts` document id) — scopes session to one instructor. */
+  instructorAuthId?: string;
 }
 
 export interface InstructorAccount {
@@ -142,9 +144,9 @@ export class StudentApiService {
   };
   private readonly defaultInstructorAccount: DefaultAccountSeed = {
     id: 'ins-acc-1',
-    fullName: 'Azryth Sacuan',
-    email: 'sacuan.azryth0@gmail.com',
-    qrCodeValue: 'ATTENDEASE-INSTRUCTOR-INS-ACC-1'
+    fullName: 'Instructor Demo',
+    email: 'instructor@gmail.com',
+    qrCodeValue: 'ATTENDEASE-INSTRUCTOR-AUTH-INS-1'
   };
   private readonly defaultAuthAccounts: AuthAccount[] = [
     {
@@ -700,12 +702,31 @@ export class StudentApiService {
     return deleteDoc(doc(this.db, 'instructorSchedules', id));
   }
 
-  getInstructorSessions(): Promise<InstructorSession[]> {
+  /**
+   * All sessions (any instructor). Used for manual code uniqueness and student active-session discovery.
+   */
+  private listAllInstructorSessions(): Promise<InstructorSession[]> {
     return this.listCollection<InstructorSession>('instructorSessions');
   }
 
+  /** Sessions created by the logged-in instructor (matches `authAccounts` id). */
+  getInstructorSessionsForOwner(instructorAuthId: string): Promise<InstructorSession[]> {
+    const trimmed = instructorAuthId.trim();
+    if (!trimmed) {
+      return Promise.resolve([]);
+    }
+    const ref = collection(this.db, 'instructorSessions');
+    const ownerQuery = query(ref, where('instructorAuthId', '==', trimmed));
+    return getDocs(ownerQuery).then((snapshot) =>
+      snapshot.docs.map((item) => {
+        const data = item.data() as InstructorSession;
+        return { ...data, id: data.id ?? item.id };
+      })
+    );
+  }
+
   async getActiveInstructorSessions(): Promise<InstructorSession[]> {
-    const sessions = await this.getInstructorSessions();
+    const sessions = await this.listAllInstructorSessions();
     return sessions
       .filter((session) => session.status === 'active')
       .sort((first, second) => {
@@ -800,7 +821,7 @@ export class StudentApiService {
   }
 
   async createUniqueManualAttendanceCode(length: number = 6): Promise<string> {
-    const sessions = await this.getInstructorSessions();
+    const sessions = await this.listAllInstructorSessions();
     const usedCodes = new Set(
       sessions
         .map((session) => (session.manualAttendanceCode ?? '').trim().toUpperCase())
@@ -819,7 +840,7 @@ export class StudentApiService {
     if (!normalizedCode) {
       return false;
     }
-    const sessions = await this.getInstructorSessions();
+    const sessions = await this.listAllInstructorSessions();
     return !sessions.some(
       (session) => (session.manualAttendanceCode ?? '').trim().toUpperCase() === normalizedCode
     );

@@ -57,6 +57,21 @@ export class AttendanceComponent {
 
     setTimeout(async () => {
       try {
+        const rawAuth = localStorage.getItem('attendease-auth-session');
+        const parsedAuth = rawAuth
+          ? (JSON.parse(rawAuth) as { role?: string; email?: string })
+          : null;
+        const authEmail = (parsedAuth?.email ?? '').trim().toLowerCase();
+        if (parsedAuth?.role !== 'instructor' || !authEmail) {
+          this.startError = 'You must be signed in as an instructor to start a session.';
+          return;
+        }
+        const instructorAccount = await this.api.getAuthAccountByEmail('instructor', authEmail);
+        if (!instructorAccount?.id) {
+          this.startError = 'Unable to verify instructor account. Please sign in again.';
+          return;
+        }
+
         const instructorCode = this.manualAttendanceCode.trim().toUpperCase();
         let manualAttendanceCode = instructorCode;
 
@@ -79,6 +94,7 @@ export class AttendanceComponent {
           status: 'active',
           manualAttendanceCode,
           startedAt: new Date().toISOString(),
+          instructorAuthId: instructorAccount.id,
         };
 
         try {
@@ -158,7 +174,23 @@ export class AttendanceComponent {
 
   private async loadSessions(): Promise<void> {
     try {
-      this.recentSessions.set(await this.api.getInstructorSessions());
+      const rawSession = localStorage.getItem('attendease-auth-session');
+      if (!rawSession) {
+        this.recentSessions.set([]);
+        return;
+      }
+      const session = JSON.parse(rawSession) as { role?: string; email?: string };
+      const email = (session.email ?? '').trim().toLowerCase();
+      if (session.role !== 'instructor' || !email) {
+        this.recentSessions.set([]);
+        return;
+      }
+      const account = await this.api.getAuthAccountByEmail('instructor', email);
+      if (!account?.id) {
+        this.recentSessions.set([]);
+        return;
+      }
+      this.recentSessions.set(await this.api.getInstructorSessionsForOwner(account.id));
     } catch {
       this.recentSessions.set([]);
     }

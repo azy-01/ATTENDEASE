@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -69,7 +69,8 @@ export class LandingComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly router: Router,
-    private readonly studentApi: StudentApiService
+    private readonly studentApi: StudentApiService,
+    private readonly cdr: ChangeDetectorRef
   ) { }
   private readonly themeStorageKey = 'attendease-theme';
 
@@ -186,7 +187,11 @@ export class LandingComponent implements OnInit, OnDestroy {
   private showToast(message: string, color: string, shadow: string): void {
     if (this.toastTimer) clearTimeout(this.toastTimer);
     this.toast = { message, color, shadow };
-    this.toastTimer = setTimeout(() => (this.toast = null), 3500);
+    this.cdr.markForCheck();
+    this.toastTimer = setTimeout(() => {
+      this.toast = null;
+      this.cdr.markForCheck();
+    }, 3500);
   }
 
   getBadgeClass(status: string): string { return `badge badge-${status}`; }
@@ -319,6 +324,7 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.formErrors['auth'] = 'Unable to log in right now. Please try again.';
     } finally {
       this.isLoading = false;
+      this.cdr.markForCheck();
     }
   }
   // ── Instructor signup ─────────────────────────────────────
@@ -351,6 +357,7 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.formErrors['auth'] = message;
     } finally {
       this.isLoading = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -381,6 +388,7 @@ export class LandingComponent implements OnInit, OnDestroy {
       this.formErrors['auth'] = message;
     } finally {
       this.isLoading = false;
+      this.cdr.markForCheck();
     }
   }
 

@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, ViewChild, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, ViewChild, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StudentApiService, type AttendanceRecord } from '../../../core/data/student-api.service';
@@ -14,6 +14,7 @@ import jsQR from 'jsqr';
 export class MyAttendanceComponent implements OnDestroy {
   @ViewChild('scannerVideo') private scannerVideoRef?: ElementRef<HTMLVideoElement>;
   private readonly authSessionStorageKey = 'attendease-auth-session';
+  private readonly studentProfileStorageKey = 'student-account-profile';
   selectedSubject = '';
   selectedStatus = '';
   fromDate = '';
@@ -48,7 +49,10 @@ export class MyAttendanceComponent implements OnDestroy {
 
   private readonly allRecords = signal<AttendanceRecord[]>([]);
 
-  constructor(private readonly studentApi: StudentApiService) {
+  constructor(
+    private readonly studentApi: StudentApiService,
+    private readonly cdr: ChangeDetectorRef
+  ) {
     this.scannerSupported = this.canUseCameraScanner();
     void this.initializePage();
   }
@@ -95,6 +99,7 @@ export class MyAttendanceComponent implements OnDestroy {
     this.attendanceMethod = method;
     this.submitError = '';
     this.submitSuccess = '';
+    this.cdr.markForCheck();
   }
 
   async startQrScanner(): Promise<void> {
@@ -111,6 +116,7 @@ export class MyAttendanceComponent implements OnDestroy {
       await this.openSelectedCameraStream();
       this.isScannerOpen = true;
       this.setupBarcodeDetector();
+      this.cdr.detectChanges();
       this.attachStreamToVideo();
 
       if (this.scanIntervalId === null) {
@@ -127,6 +133,7 @@ export class MyAttendanceComponent implements OnDestroy {
       this.stopQrScanner();
     } finally {
       this.isScannerStarting = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -147,6 +154,7 @@ export class MyAttendanceComponent implements OnDestroy {
       this.scannerError = 'Unable to switch camera. Please select another device.';
     } finally {
       this.isScannerStarting = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -164,6 +172,7 @@ export class MyAttendanceComponent implements OnDestroy {
 
     this.isScannerOpen = false;
     this.isDetecting = false;
+    this.cdr.markForCheck();
   }
 
   async submitAttendance(): Promise<void> {
@@ -176,11 +185,13 @@ export class MyAttendanceComponent implements OnDestroy {
 
     if (!this.studentEmail) {
       this.submitError = 'Student session is missing. Please sign in again.';
+      this.cdr.markForCheck();
       return;
     }
 
     if (!this.studentQrCodeValue) {
       this.submitError = 'Your student QR code is not available yet. Please refresh or sign in again.';
+      this.cdr.markForCheck();
       return;
     }
 
@@ -188,23 +199,27 @@ export class MyAttendanceComponent implements OnDestroy {
       const payloadInput = this.qrPayloadInput.trim();
       if (!payloadInput) {
         this.submitError = 'Scan a QR code first or paste the QR payload before submitting.';
+        this.cdr.markForCheck();
         return;
       }
 
       const qrCodeValue = this.extractQrCodeValue(payloadInput);
       if (!qrCodeValue || qrCodeValue !== this.studentQrCodeValue) {
         this.submitError = 'QR payload does not match your registered QR code.';
+        this.cdr.markForCheck();
         return;
       }
     } else {
       const manualCode = this.manualCodeInput.trim();
       if (!manualCode) {
         this.submitError = 'Enter the manual attendance code provided by your instructor.';
+        this.cdr.markForCheck();
         return;
       }
     }
 
     this.isSubmitting = true;
+    this.cdr.markForCheck();
     try {
       const result = await this.studentApi.submitStudentAttendance({
         studentEmail: this.studentEmail,
@@ -223,6 +238,7 @@ export class MyAttendanceComponent implements OnDestroy {
           this.submitError = 'Attendance already recorded for this active session.';
         }
         await this.refreshActiveSessionState();
+        this.cdr.markForCheck();
         return;
       }
 
@@ -234,6 +250,7 @@ export class MyAttendanceComponent implements OnDestroy {
       this.submitError = 'Unable to submit attendance right now.';
     } finally {
       this.isSubmitting = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -244,6 +261,7 @@ export class MyAttendanceComponent implements OnDestroy {
       this.refreshActiveSessionState()
     ]);
     await this.loadAttendanceRecords();
+    this.cdr.markForCheck();
   }
 
   private async loadAttendanceRecords(): Promise<void> {
@@ -261,6 +279,7 @@ export class MyAttendanceComponent implements OnDestroy {
     } catch {
       this.allRecords.set([]);
     }
+    this.cdr.markForCheck();
   }
 
   private resolveStudentSession(): void {
@@ -281,11 +300,34 @@ export class MyAttendanceComponent implements OnDestroy {
 
     try {
       const profile = await this.studentApi.getStudentProfile(this.studentEmail);
-      if (!profile) return;
-      this.studentName = profile.fullName || this.studentName;
-      this.studentQrCodeValue = profile.qrCodeValue?.trim() ?? '';
+      if (profile) {
+        this.studentName = profile.fullName || this.studentName;
+        this.studentQrCodeValue = profile.qrCodeValue?.trim() ?? '';
+      }
     } catch {
       this.studentQrCodeValue = '';
+    }
+
+    if (!this.studentQrCodeValue) {
+      this.studentQrCodeValue = this.readCachedStudentQrCode();
+    }
+    this.cdr.markForCheck();
+  }
+
+  /** Same key as login / QR Code page — Firestore may not have synced `qrCodeValue` yet. */
+  private readCachedStudentQrCode(): string {
+    const raw = localStorage.getItem(this.studentProfileStorageKey);
+    if (!raw) return '';
+
+    try {
+      const parsed = JSON.parse(raw) as { email?: string; qrCodeValue?: string };
+      const cachedEmail = parsed.email?.trim().toLowerCase() ?? '';
+      if (cachedEmail && cachedEmail !== this.studentEmail) {
+        return '';
+      }
+      return parsed.qrCodeValue?.trim() ?? '';
+    } catch {
+      return '';
     }
   }
 
@@ -301,6 +343,7 @@ export class MyAttendanceComponent implements OnDestroy {
       this.activeSessionLabel = '';
       this.activeSessionManualCode = '';
     }
+    this.cdr.markForCheck();
   }
 
   private extractQrCodeValue(payload: string): string {
@@ -384,6 +427,7 @@ export class MyAttendanceComponent implements OnDestroy {
       this.stopQrScanner();
     } finally {
       this.isDetecting = false;
+      this.cdr.markForCheck();
     }
   }
 

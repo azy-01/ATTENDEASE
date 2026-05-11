@@ -131,14 +131,19 @@ export class OverviewComponent implements OnInit {
         return;
       }
 
-      const [account, classes, attendance, sessions] = await Promise.all([
-        this.studentApi.getAuthAccountByEmail('instructor', email),
+      const account = await this.studentApi.getAuthAccountByEmail('instructor', email);
+      if (!account?.id) {
+        this.clearInstructorData();
+        return;
+      }
+
+      const [classes, attendance, sessions] = await Promise.all([
         this.studentApi.getInstructorClasses(),
         this.studentApi.getAttendanceRecords(),
-        this.studentApi.getInstructorSessions()
+        this.studentApi.getInstructorSessionsForOwner(account.id)
       ]);
 
-      const allowedClassIds = account?.allowedClassIds ?? [];
+      const allowedClassIds = account.allowedClassIds ?? [];
       const scopedClasses = classes.filter((item) => allowedClassIds.includes(item.id));
       const scopedClassNames = new Set(
         scopedClasses.map((item) => item.name.trim().toLowerCase()).filter((name) => Boolean(name))
