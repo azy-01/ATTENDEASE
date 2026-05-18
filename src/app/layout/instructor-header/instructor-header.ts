@@ -1,8 +1,7 @@
-import { Component, Input, Output, EventEmitter, HostListener, computed, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import Swal from 'sweetalert2';
-import { NotificationService } from '../../core/data/notification.service';
+import { NotificationRole, NotificationService } from '../../core/data/notification.service';
 
 @Component({
   selector: 'app-instructor-header',
@@ -16,6 +15,7 @@ export class InstructorHeaderComponent {
   private readonly themeStorageKey = 'attendease-theme';
   private readonly router = inject(Router);
   readonly notificationService = inject(NotificationService);
+  private readonly notificationRole = this.resolveNotificationRole();
 
   @Input() pageTitle: string = 'Overview';
   @Input() userName: string = 'Azryth Sacuan';
@@ -25,8 +25,8 @@ export class InstructorHeaderComponent {
   profileMenuOpen = false;
   notificationMenuOpen = false;
   isDarkMode = localStorage.getItem(this.themeStorageKey) === 'dark';
-  readonly notifications = this.notificationService.items;
-  readonly unreadCount = computed(() => this.notificationService.unreadCount());
+  readonly notifications = this.notificationService.itemsForRole(this.notificationRole);
+  readonly unreadCount = this.notificationService.unreadCountForRole(this.notificationRole);
 
   get userInitial(): string {
     return this.userName ? this.userName.charAt(0).toUpperCase() : 'A';
@@ -71,32 +71,30 @@ export class InstructorHeaderComponent {
 
   markAllNotificationsAsRead(event: Event): void {
     event.stopPropagation();
-    this.notificationService.markAllAsRead();
+    this.notificationService.markAllAsRead(this.notificationRole);
   }
 
-  async logout(event: Event): Promise<void> {
-    event.stopPropagation();
-    const result = await Swal.fire({
-      title: 'Log out?',
-      text: 'You will need to sign in again to continue.',
-      icon: 'warning',
-      customClass: {
-        popup: 'swal-delete-popup',
-      },
-      showCancelButton: true,
-      confirmButtonText: 'Yes, log out',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
-      reverseButtons: true,
-    });
+  private resolveNotificationRole(): NotificationRole {
+    const raw = localStorage.getItem(this.authSessionStorageKey);
+    if (!raw) return 'instructor';
 
-    if (!result.isConfirmed) {
-      return;
+    try {
+      const session = JSON.parse(raw) as { role?: NotificationRole };
+      const role = session.role;
+      if (role === 'instructor' || role === 'admin' || role === 'superadmin') {
+        return role;
+      }
+    } catch {
+      return 'instructor';
     }
 
-    localStorage.removeItem(this.authSessionStorageKey);
+    return 'instructor';
+  }
+
+  logout(event: Event): void {
+    event.stopPropagation();
     this.profileMenuOpen = false;
     this.notificationMenuOpen = false;
-    void this.router.navigate(['/']);
+    void this.router.navigate(['/logout']);
   }
 }

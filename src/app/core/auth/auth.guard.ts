@@ -28,7 +28,13 @@ function readAuthSession(): AuthSession | null {
 }
 
 function resolveUnauthorizedRedirect(role: UserRole): string {
-  return role === 'student' ? '/student/overview' : '/instructor/overview';
+  if (role === 'student') {
+    return '/student/overview';
+  }
+  if (role === 'admin' || role === 'superadmin') {
+    return '/instructor/students';
+  }
+  return '/instructor/overview';
 }
 
 export function allowRoles(allowedRoles: UserRole[]): CanActivateFn {

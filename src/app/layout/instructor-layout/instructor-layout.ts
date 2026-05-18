@@ -59,6 +59,7 @@ export class InstructorLayoutComponent {
       instructors: 'Account Creation',
       'pending-account-approval': 'Pending Account Approval',
       'instructor-accounts': 'Instructor Accounts',
+      'archived-instructor-accounts': 'Archives',
       account: 'Account',
     };
     this.pageTitle = titles[segment] ?? 'Overview';

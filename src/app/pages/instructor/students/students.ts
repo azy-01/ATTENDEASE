@@ -1,8 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
-import { StudentApiService, type InstructorStudent } from '../../../core/data/student-api.service';
+import {
+  StudentApiService,
+  type InstructorClass,
+  type InstructorStudent
+} from '../../../core/data/student-api.service';
 import { NotificationService } from '../../../core/data/notification.service';
+
+interface StudentDisplayRow {
+  student: InstructorStudent;
+  section: string;
+  subjects: string[];
+}
 
 @Component({
   selector: 'app-students',
@@ -17,7 +27,6 @@ import { NotificationService } from '../../../core/data/notification.service';
           [value]="searchTerm"
           (input)="onSearchInput($event)"
         />
-        <button type="button" *ngIf="isAdmin" (click)="openAddModal()">+ Add Student</button>
       </div>
 
       <div class="table-wrap">
@@ -28,24 +37,32 @@ import { NotificationService } from '../../../core/data/notification.service';
               <th>Student ID</th>
               <th>Email</th>
               <th>Section</th>
+              <th>Subject</th>
               <th>Status</th>
               <th *ngIf="isAdmin">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let student of filteredStudents">
-              <td class="name-cell">{{ student.name }}</td>
-              <td>{{ student.studentId }}</td>
-              <td>{{ student.email }}</td>
-              <td>{{ student.section }}</td>
+            <tr *ngFor="let row of filteredStudents">
+              <td class="name-cell">{{ row.student.name }}</td>
+              <td>{{ row.student.studentId }}</td>
+              <td>{{ row.student.email }}</td>
+              <td>{{ row.section }}</td>
+              <td>{{ row.subjects.join(', ') }}</td>
               <td><span class="badge">active</span></td>
               <td *ngIf="isAdmin">
                 <div class="actions">
-                  <button type="button" class="action-btn" (click)="editStudent(student)" aria-label="Edit student">
+                  <button type="button" class="action-btn" (click)="editStudent(row.student)" aria-label="Edit student">
                     ✎
                   </button>
-                  <button type="button" class="action-btn danger" (click)="deleteStudent(student)" aria-label="Delete student">
-                    🗑
+                  <button type="button" class="archive-btn" (click)="archiveStudent(row.student)" aria-label="Archive student">
+                    <svg class="archive-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path
+                        fill="currentColor"
+                        d="M20.54 5.23l-1.39-1.68A2 2 0 0 0 17.52 3H6.48c-.66 0-1.26.33-1.62.88L3.46 5.23A1 1 0 0 0 4 7h16a1 1 0 0 0 .54-1.77zM5.12 9l.81 9.12A2 2 0 0 0 7.92 20h8.16a2 2 0 0 0 1.99-1.88L18.88 9H5.12z"
+                      />
+                    </svg>
+                    <span>Archive</span>
                   </button>
                 </div>
               </td>
@@ -87,38 +104,6 @@ import { NotificationService } from '../../../core/data/notification.service';
         </div>
       </div>
 
-      <div class="modal-backdrop" *ngIf="isAdmin && isAddModalOpen" (click)="closeAddModal()">
-        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Add student" (click)="$event.stopPropagation()">
-          <div class="modal-head">
-            <h3>Add Student</h3>
-            <button type="button" class="icon-close" (click)="closeAddModal()" aria-label="Close add student modal">×</button>
-          </div>
-
-          <div class="modal-body">
-            <label>
-              <span>Name</span>
-              <input type="text" [value]="addDraft.name" (input)="onAddFieldChange('name', $event)" />
-            </label>
-            <label>
-              <span>Student ID</span>
-              <input type="text" [value]="addDraft.studentId" (input)="onAddFieldChange('studentId', $event)" />
-            </label>
-            <label>
-              <span>Email</span>
-              <input type="email" [value]="addDraft.email" (input)="onAddFieldChange('email', $event)" />
-            </label>
-            <label>
-              <span>Section</span>
-              <input type="text" [value]="addDraft.section" (input)="onAddFieldChange('section', $event)" />
-            </label>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-ghost" (click)="closeAddModal()">Cancel</button>
-            <button type="button" class="btn-primary" (click)="saveNewStudent()">Add Student</button>
-          </div>
-        </div>
-      </div>
     </div>
   `,
   styles: [`
@@ -126,33 +111,33 @@ import { NotificationService } from '../../../core/data/notification.service';
     .toolbar, .table-wrap {
       background: #fff; border: 1px solid #edf0f5; border-radius: 12px;
     }
-    .toolbar { display: flex; gap: 10px; padding: 12px; justify-content: space-between; }
+    .toolbar { display: flex; gap: 10px; padding: 12px; }
     .toolbar input { flex: 1; height: 38px; border-radius: 8px; border: 1px solid #e5e7eb; padding: 0 12px; font-size: 13px; }
-    .toolbar button {
-      height: 38px; border: none; border-radius: 8px; padding: 0 14px;
-      background: #4f46e5; color: #fff; font-weight: 600; cursor: pointer;
-    }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 12px; border-bottom: 1px solid #f0f2f6; text-align: left; color: #4b5563; }
     .name-cell { font-weight: 700; }
     th { color: #6b7280; font-weight: 600; }
     .badge { background: #dcfce7; color: #166534; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
-    .actions { display: flex; gap: 8px; }
+    .actions { display: flex; align-items: center; gap: 8px; }
     .action-btn {
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       background: #fff;
-      color: #6b7280;
+      color: #4f46e5;
       cursor: pointer;
       display: grid;
       place-items: center;
       line-height: 1;
       font-size: 14px;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
-    .action-btn:hover { background: #f9fafb; }
-    .action-btn.danger { color: #dc2626; border-color: #fecaca; }
+    .action-btn:hover {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      box-shadow: 0 1px 4px rgba(79, 70, 229, 0.12);
+    }
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -249,10 +234,12 @@ import { NotificationService } from '../../../core/data/notification.service';
     :host-context(body.dark-mode) .action-btn {
       background: #0f172a;
       border-color: #374151;
-      color: #94a3b8;
+      color: #a5b4fc;
     }
-    :host-context(body.dark-mode) .action-btn:hover { background: #111827; }
-    :host-context(body.dark-mode) .action-btn.danger { color: #fca5a5; border-color: #7f1d1d; }
+    :host-context(body.dark-mode) .action-btn:hover {
+      background: #1e1b4b;
+      border-color: #4f46e5;
+    }
     :host-context(body.dark-mode) .modal-card {
       background: #111827;
       border-color: #374151;
@@ -279,12 +266,12 @@ import { NotificationService } from '../../../core/data/notification.service';
 export class StudentsComponent {
   private readonly authSessionStorageKey = 'attendease-auth-session';
   readonly students = signal<InstructorStudent[]>([]);
+  readonly displayRows = signal<StudentDisplayRow[]>([]);
   isAdmin = false;
   private role: 'instructor' | 'admin' | 'superadmin' | 'student' | '' = '';
   private email = '';
   searchTerm = '';
   isEditModalOpen = false;
-  isAddModalOpen = false;
   editingStudentRecordId = '';
   editDraft: InstructorStudent = {
     id: '',
@@ -293,14 +280,6 @@ export class StudentsComponent {
     email: '',
     section: '',
   };
-  addDraft: InstructorStudent = {
-    id: '',
-    name: '',
-    studentId: '',
-    email: '',
-    section: '',
-  };
-
   constructor(
     private readonly api: StudentApiService,
     private readonly notifications: NotificationService
@@ -309,71 +288,26 @@ export class StudentsComponent {
     void this.loadStudents();
   }
 
-  openAddModal(): void {
-    this.isAddModalOpen = true;
-    this.addDraft = { id: '', name: '', studentId: '', email: '', section: '' };
-  }
-
-  closeAddModal(): void {
-    this.isAddModalOpen = false;
-    this.addDraft = { id: '', name: '', studentId: '', email: '', section: '' };
-  }
-
-  onAddFieldChange(field: keyof InstructorStudent, event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.addDraft = {
-      ...this.addDraft,
-      [field]: target.value,
-    };
-  }
-
-  async saveNewStudent(): Promise<void> {
-    const newStudent: InstructorStudent = {
-      id: this.addDraft.id || `student-${Date.now()}`,
-      name: this.addDraft.name.trim(),
-      studentId: this.addDraft.studentId.trim(),
-      email: this.addDraft.email.trim(),
-      section: this.addDraft.section.trim(),
-    };
-
-    if (!newStudent.name || !newStudent.studentId || !newStudent.email || !newStudent.section) {
-      return;
-    }
-
-    const hasDuplicateId = this.students().some((student) => student.studentId === newStudent.studentId);
-    if (hasDuplicateId) {
-      return;
-    }
-
-    try {
-      const created = await this.api.addInstructorStudent(newStudent);
-      this.students.set([...this.students(), created]);
-      this.notifications.add('Student added', `${created.name} was added to ${created.section}.`);
-    } catch {
-      this.students.set([...this.students(), newStudent]);
-      this.notifications.add('Student added', `${newStudent.name} was added to ${newStudent.section}.`);
-    }
-    this.closeAddModal();
-  }
-
   onSearchInput(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.searchTerm = target.value;
   }
 
-  get filteredStudents(): InstructorStudent[] {
+  get filteredStudents(): StudentDisplayRow[] {
     const query = this.searchTerm.trim().toLowerCase();
-    const list = this.students();
+    const list = this.displayRows();
     if (!query) {
       return list;
     }
 
-    return list.filter((student) => {
+    return list.filter((row) => {
+      const subjectsLabel = row.subjects.join(' ').toLowerCase();
       return (
-        student.name.toLowerCase().includes(query) ||
-        student.studentId.toLowerCase().includes(query) ||
-        student.email.toLowerCase().includes(query) ||
-        student.section.toLowerCase().includes(query)
+        row.student.name.toLowerCase().includes(query) ||
+        row.student.studentId.toLowerCase().includes(query) ||
+        row.student.email.toLowerCase().includes(query) ||
+        row.section.toLowerCase().includes(query) ||
+        subjectsLabel.includes(query)
       );
     });
   }
@@ -414,75 +348,201 @@ export class StudentsComponent {
           student.id !== this.editingStudentRecordId ? student : updated
         )
       );
-      this.notifications.add('Student updated', `${updated.name}'s profile was updated.`);
+      this.notifications.add('Student updated', `${updated.name}'s profile was updated.`, 'instructor');
     } catch {
       this.students.set(
         this.students().map((student) =>
           student.id !== this.editingStudentRecordId ? student : updatedDraft
         )
       );
-      this.notifications.add('Student updated', `${updatedDraft.name}'s profile was updated.`);
+      this.notifications.add('Student updated', `${updatedDraft.name}'s profile was updated.`, 'instructor');
     }
 
+    await this.loadStudents();
     this.closeEditModal();
   }
 
-  async deleteStudent(student: InstructorStudent): Promise<void> {
+  async archiveStudent(student: InstructorStudent): Promise<void> {
     const result = await Swal.fire({
-      title: 'Delete student?',
-      text: `This will remove ${student.name} from your class list.`,
-      icon: 'warning',
-      customClass: {
-        popup: 'swal-delete-popup',
+      title: 'Archive student?',
+      html: `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">
+        This will disable login for <strong>${this.escapeHtml(student.name)}</strong> (${this.escapeHtml(student.email)})
+        and remove them from active class lists.</p>`,
+      input: 'textarea',
+      inputLabel: 'Reason for archiving',
+      inputPlaceholder: 'Explain why this student is being archived...',
+      inputAttributes: {
+        'aria-label': 'Reason for archiving'
       },
+      inputValidator: (value) => {
+        if (!value?.trim()) {
+          return 'A reason is required before archiving.';
+        }
+        return null;
+      },
+      icon: 'warning',
+      customClass: { popup: 'swal-delete-popup' },
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete',
+      confirmButtonText: 'Archive student',
       cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
-      reverseButtons: true,
+      confirmButtonColor: '#b91c1c',
+      reverseButtons: true
     });
 
-    if (!result.isConfirmed) {
+    if (!result.isConfirmed || typeof result.value !== 'string') {
       return;
     }
 
     try {
-      await this.api.deleteManagedAccountByEmail('student', student.email);
-    } catch {
-      // Fallback: still remove the roster entry when linked auth account deletion fails.
-      try {
-        await this.api.deleteInstructorStudent(student.id);
-      } catch {
-        // Keep UI update as fallback.
-      }
+      await this.api.archiveStudentAccount(
+        student.email,
+        result.value.trim(),
+        this.getAdminEmail()
+      );
+      this.students.set(this.students().filter((row) => row.id !== student.id));
+      this.displayRows.set(this.displayRows().filter((row) => row.student.id !== student.id));
+      await Swal.fire({
+        title: 'Student archived',
+        html: `
+          <p class="archive-result-lead"><strong>${this.escapeHtml(student.name)}</strong> has been archived.</p>
+          <p class="archive-result-email">Removed from active lists. Restore from <strong>Archives</strong> if needed.</p>
+        `,
+        icon: 'success',
+        confirmButtonText: 'Done',
+        confirmButtonColor: '#16a34a',
+        customClass: { popup: 'swal-archive-result-popup' }
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to archive student.';
+      await Swal.fire({
+        title: 'Archive failed',
+        text: message,
+        icon: 'error',
+        confirmButtonColor: '#4f46e5',
+        customClass: { popup: 'swal-archive-result-popup' }
+      });
     }
-    this.students.set(this.students().filter((row) => row.id !== student.id));
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private getAdminEmail(): string {
+    const rawSession = localStorage.getItem(this.authSessionStorageKey);
+    if (!rawSession) {
+      return 'admin';
+    }
+    try {
+      const parsed = JSON.parse(rawSession) as { email?: string };
+      return parsed.email?.trim().toLowerCase() || 'admin';
+    } catch {
+      return 'admin';
+    }
   }
 
   private async loadStudents(): Promise<void> {
     try {
-      const allStudents = await this.api.getInstructorStudents();
+      const [allStudents, allClasses] = await Promise.all([
+        this.api.getInstructorStudents(),
+        this.api.getInstructorClasses(),
+      ]);
+
       if (this.role !== 'instructor' || !this.email) {
         this.students.set(allStudents);
+        this.displayRows.set(this.buildDisplayRows(allStudents, allClasses));
         return;
       }
 
-      const [account, allClasses] = await Promise.all([
-        this.api.getAuthAccountByEmail('instructor', this.email),
-        this.api.getInstructorClasses()
-      ]);
-      const allowedClassIds = account?.allowedClassIds ?? [];
+      const account = await this.api.getAuthAccountByEmail('instructor', this.email);
+      const scopedClasses = this.resolveScopedClasses(allClasses, account);
       const scopedStudentIds = new Set(
-        allClasses
-          .filter((classItem) => allowedClassIds.includes(classItem.id))
-          .flatMap((classItem) => classItem.assignedStudentIds ?? [])
+        scopedClasses.flatMap((classItem) => classItem.assignedStudentIds ?? [])
       );
-      this.students.set(
-        allStudents.filter((student) => scopedStudentIds.has(student.id))
-      );
+      const scopedStudents = allStudents.filter((student) => scopedStudentIds.has(student.id));
+      this.students.set(scopedStudents);
+      this.displayRows.set(this.buildDisplayRows(scopedStudents, scopedClasses));
     } catch {
       this.students.set([]);
+      this.displayRows.set([]);
     }
+  }
+
+  private resolveScopedClasses(
+    classes: InstructorClass[],
+    account: { allowedClassIds?: string[]; id?: string } | null
+  ): InstructorClass[] {
+    const allowedClassIds = account?.allowedClassIds ?? [];
+    let scopedClasses = allowedClassIds.length
+      ? classes.filter((classItem) => allowedClassIds.includes(classItem.id))
+      : [];
+
+    if (!scopedClasses.length && account?.id) {
+      scopedClasses = classes.filter((classItem) =>
+        (classItem.assignedInstructorIds ?? []).includes(account.id ?? '')
+      );
+    }
+
+    return scopedClasses;
+  }
+
+  private buildDisplayRows(
+    students: InstructorStudent[],
+    classes: InstructorClass[]
+  ): StudentDisplayRow[] {
+    const studentById = new Map(students.map((student) => [student.id, student]));
+    const rowMap = new Map<string, StudentDisplayRow>();
+
+    for (const classItem of classes) {
+      const section = (classItem.section ?? '').trim() || classItem.name.trim();
+      const subjects = this.getSubjectsForClass(classItem);
+
+      for (const studentId of classItem.assignedStudentIds ?? []) {
+        const student = studentById.get(studentId);
+        if (!student) {
+          continue;
+        }
+
+        const rowKey = `${student.id}::${section.toLowerCase()}`;
+        const existing = rowMap.get(rowKey);
+        if (existing) {
+          existing.subjects = [...new Set([...existing.subjects, ...subjects])].sort((a, b) =>
+            a.localeCompare(b)
+          );
+          continue;
+        }
+
+        rowMap.set(rowKey, {
+          student,
+          section,
+          subjects: [...subjects].sort((a, b) => a.localeCompare(b)),
+        });
+      }
+    }
+
+    return Array.from(rowMap.values()).sort((first, second) => {
+      const byName = first.student.name.localeCompare(second.student.name, undefined, {
+        sensitivity: 'base',
+      });
+      if (byName !== 0) {
+        return byName;
+      }
+      return first.section.localeCompare(second.section, undefined, { sensitivity: 'base' });
+    });
+  }
+
+  private getSubjectsForClass(classItem: InstructorClass): string[] {
+    const normalizedSubjects = (classItem.assignedSubjects ?? [])
+      .map((subject) => subject.trim())
+      .filter((subject) => Boolean(subject));
+    if (normalizedSubjects.length) {
+      return [...new Set(normalizedSubjects)];
+    }
+    return [classItem.name?.trim() || 'Untitled Subject'];
   }
 
   private resolveSession(): void {

@@ -7,5 +7,12 @@ export const environment = {
     messagingSenderId: '618375349761',
     appId: '1:618375349761:web:700476fb30d941c113a200',
     measurementId: 'G-ECRVHQLBCH'
+  },
+  accountEmail: {
+    emailjs: {
+      serviceId: 'service_z5mm777',
+      templateId: 'template_xdnxlzw',
+      publicKey: '8GRr30pQyGaOBpSRF'
+    }
   }
 };

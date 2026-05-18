@@ -5,6 +5,12 @@
   width: 100%;
 }
 
+.load-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

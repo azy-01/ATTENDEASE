@@ -1,6 +1,8 @@
 <div class="overview-page">
+  <p class="load-hint" *ngIf="isLoading()">Loading overview…</p>
+
   <div class="stats-grid">
-    <div class="stat-card" *ngFor="let stat of stats">
+    <div class="stat-card" *ngFor="let stat of stats()">
       <div class="stat-info">
         <p class="stat-label">{{ stat.label }}</p>
         <p class="stat-value">{{ stat.value }}</p>
@@ -24,8 +26,8 @@
               <th>Status</th>
             </tr>
           </thead>
-          <tbody *ngIf="recentAttendance.length; else noAttendanceRows">
-            <tr *ngFor="let item of recentAttendance">
+          <tbody *ngIf="recentAttendance().length; else noAttendanceRows">
+            <tr *ngFor="let item of recentAttendance()">
               <td>{{ item.subject }}</td>
               <td><span class="class-badge">{{ item.section }}</span></td>
               <td>{{ item.date }}</td>
@@ -44,8 +46,8 @@
     <div class="overview-right">
       <div class="card">
         <h2 class="card-title">Upcoming Classes</h2>
-        <ul class="upcoming-list" *ngIf="upcomingClasses.length; else noUpcomingClasses">
-          <li *ngFor="let item of upcomingClasses">{{ item }}</li>
+        <ul class="upcoming-list" *ngIf="upcomingClasses().length; else noUpcomingClasses">
+          <li *ngFor="let item of upcomingClasses()">{{ item }}</li>
         </ul>
         <ng-template #noUpcomingClasses>
           <p class="empty-state">No assigned schedules yet.</p>

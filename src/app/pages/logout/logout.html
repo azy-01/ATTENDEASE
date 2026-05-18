@@ -1,0 +1,52 @@
+<div class="logout-page" *ngIf="session as activeSession">
+  <div class="logout-backdrop" aria-hidden="true"></div>
+
+  <main class="logout-card" role="dialog" aria-labelledby="logout-title" aria-describedby="logout-desc">
+    <a class="logout-brand" routerLink="/" aria-label="Back to AttendEase home">
+      <span class="material-icons" aria-hidden="true">school</span>
+      <span>AttendEase</span>
+    </a>
+
+    <div class="logout-icon-wrap" aria-hidden="true">
+      <span class="material-icons">logout</span>
+    </div>
+
+    <h1 id="logout-title">Sign out?</h1>
+    <p id="logout-desc" class="logout-lead">
+      You are about to leave your {{ roleLabel | lowercase }} session. Unsaved changes on open pages may be lost.
+    </p>
+
+    <div class="logout-profile">
+      <div class="logout-avatar" aria-hidden="true">{{ userInitial }}</div>
+      <div class="logout-profile-text">
+        <strong>{{ activeSession.fullName }}</strong>
+        <span>{{ activeSession.email }}</span>
+      </div>
+    </div>
+
+    <ul class="logout-notes">
+      <li>You will need your password to sign in again.</li>
+      <li>Approval and attendance notifications still go to your Gmail when you return.</li>
+    </ul>
+
+    <div class="logout-actions">
+      <button
+        type="button"
+        class="btn-stay"
+        (click)="staySignedIn()"
+        [disabled]="isSigningOut"
+      >
+        Stay signed in
+      </button>
+      <button
+        type="button"
+        class="btn-sign-out"
+        (click)="confirmSignOut()"
+        [disabled]="isSigningOut"
+      >
+        <span class="material-icons" aria-hidden="true">logout</span>
+        {{ isSigningOut ? 'Signing out…' : 'Sign out' }}
+      </button>
+    </div>
+  </main>
+</div>

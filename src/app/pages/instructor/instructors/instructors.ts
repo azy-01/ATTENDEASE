@@ -31,8 +31,14 @@ import { StudentApiService } from '../../../core/data/student-api.service';
               <input [ngModel]="newAccountLastName()" (ngModelChange)="newAccountLastName.set($event)" />
             </label>
             <label>
-              <span>Email</span>
-              <input [ngModel]="newAccountEmail()" (ngModelChange)="newAccountEmail.set($event)" />
+              <span>Gmail Address</span>
+              <input
+                type="email"
+                [ngModel]="newAccountEmail()"
+                (ngModelChange)="newAccountEmail.set($event)"
+                placeholder="name@gmail.com"
+              />
+              <span class="field-hint">Instructor and student accounts must use a real @gmail.com address for notifications.</span>
             </label>
             <label>
               <span>Password</span>
@@ -73,6 +79,7 @@ import { StudentApiService } from '../../../core/data/student-api.service';
       color: #fff; cursor: pointer; font-weight: 600;
     }
     .save-message { margin: 8px 0 0; color: #16a34a; font-size: 12px; }
+    .field-hint { display: block; margin-top: 6px; font-size: 11px; font-weight: 500; color: #6b7280; line-height: 1.4; }
     .no-access { margin: 0; color: #b91c1c; font-size: 13px; }
     :host-context(body.dark-mode) .card { background: #111827; border-color: #1f2937; }
     :host-context(body.dark-mode) h3 { color: #e5e7eb; }

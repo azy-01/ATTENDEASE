@@ -103,14 +103,16 @@ export class AttendanceComponent {
           this.startSuccess = `Session started. Manual code: ${saved.manualAttendanceCode ?? manualAttendanceCode}`;
           this.notifications.add(
             'Attendance session started',
-            `${saved.subject} for ${saved.section} is now active.`
+            `${saved.subject} for ${saved.section} is now active.`,
+            'instructor'
           );
         } catch {
           this.recentSessions.set([newSession, ...this.recentSessions()]);
           this.startSuccess = `Session started. Manual code: ${newSession.manualAttendanceCode ?? manualAttendanceCode}`;
           this.notifications.add(
             'Attendance session started',
-            `${newSession.subject} for ${newSession.section} is now active.`
+            `${newSession.subject} for ${newSession.section} is now active.`,
+            'instructor'
           );
         }
 

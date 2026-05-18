@@ -1,6 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { StudentApiService, type AttendanceRecord } from '../../../core/data/student-api.service';
+import {
+  StudentApiService,
+  type AttendanceRecord,
+  type AttendanceStatus
+} from '../../../core/data/student-api.service';
+import { getTodayDateKey, isSameCalendarDate, toCalendarDateKey } from '../../../core/utils/date.utils';
 
 interface StatCard {
   label: string;
@@ -18,7 +23,7 @@ interface AttendanceItem {
   subject: string;
   section: string;
   date: string;
-  status: 'Present' | 'Late' | 'Absent';
+  status: AttendanceStatus;
 }
 
 @Component({
@@ -31,16 +36,18 @@ interface AttendanceItem {
 export class StudentOverviewComponent implements OnInit {
   private readonly authSessionStorageKey = 'attendease-auth-session';
   private readonly studentProfileStorageKey = 'student-account-profile';
-  stats: StatCard[] = [
+  readonly isLoading = signal(true);
+
+  readonly stats = signal<StatCard[]>([
     { label: 'Attendance Rate', value: '0%', icon: 'percent', color: '#4f46e5' },
-    { label: 'Present Days', value: '0', icon: 'how_to_reg', color: '#10b981' },
-    { label: 'Late Days', value: '0', icon: 'schedule', color: '#f59e0b' },
-    { label: 'Absent Days', value: '0', icon: 'person_off', color: '#ef4444' },
-  ];
+    { label: 'Present Today', value: '0', icon: 'how_to_reg', color: '#10b981' },
+    { label: 'Late Today', value: '0', icon: 'schedule', color: '#f59e0b' },
+    { label: 'Absent Today', value: '0', icon: 'person_off', color: '#ef4444' },
+  ]);
 
-  recentAttendance: AttendanceItem[] = [];
+  readonly recentAttendance = signal<AttendanceItem[]>([]);
 
-  upcomingClasses: string[] = [];
+  readonly upcomingClasses = signal<string[]>([]);
 
   dayNames: string[] = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   calendarCells: CalendarCell[] = [];
@@ -92,15 +99,16 @@ export class StudentOverviewComponent implements OnInit {
   }
 
   private async loadStudentOverviewData(): Promise<void> {
-    const email = this.getLoggedInStudentEmail();
-    if (!email) {
-      this.recentAttendance = [];
-      this.upcomingClasses = [];
-      this.applyAttendanceStats([]);
-      return;
-    }
-
+    this.isLoading.set(true);
     try {
+      const email = this.getLoggedInStudentEmail();
+      if (!email) {
+        this.recentAttendance.set([]);
+        this.upcomingClasses.set([]);
+        this.applyAttendanceStats([]);
+        return;
+      }
+
       const [attendanceRecords, assignedSchedules] = await Promise.all([
         this.studentApi.getAttendanceRecords(),
         this.studentApi.getStudentSchedulesByEmail(email),
@@ -110,39 +118,56 @@ export class StudentOverviewComponent implements OnInit {
         .filter((record) => (record.studentEmail ?? '').trim().toLowerCase() === normalizedEmail);
 
       this.applyAttendanceStats(ownRecords);
-      this.recentAttendance = ownRecords
-        .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
-        .slice(0, 5)
-        .map((record) => ({
-          subject: record.subject,
-          section: record.section,
-          date: record.date,
-          status: record.status
-        }));
+      this.recentAttendance.set(
+        ownRecords
+          .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
+          .slice(0, 5)
+          .map((record) => ({
+            subject: record.subject,
+            section: record.section,
+            date: record.date,
+            status: record.status
+          }))
+      );
 
-      this.upcomingClasses = assignedSchedules.map(
-        (schedule) => `${schedule.subject} - ${schedule.day} ${schedule.time}`
+      this.upcomingClasses.set(
+        assignedSchedules.map(
+          (schedule) => `${schedule.subject} - ${schedule.day} ${schedule.time}`
+        )
       );
     } catch {
-      this.recentAttendance = [];
-      this.upcomingClasses = [];
+      this.recentAttendance.set([]);
+      this.upcomingClasses.set([]);
       this.applyAttendanceStats([]);
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
   private applyAttendanceStats(records: AttendanceRecord[]): void {
-    const presentCount = records.filter((item) => item.status === 'Present').length;
-    const lateCount = records.filter((item) => item.status === 'Late').length;
-    const absentCount = records.filter((item) => item.status === 'Absent').length;
-    const denominator = records.length || 1;
-    const attendanceRate = Math.round(((presentCount + lateCount) / denominator) * 100);
+    const today = new Date();
+    const todayKey = getTodayDateKey(today);
+    const todaysRecords = records.filter(
+      (item) => isSameCalendarDate(item.date, today) || toCalendarDateKey(item.date) === todayKey
+    );
 
-    this.stats = [
+    const presentToday = todaysRecords.filter((item) => item.status === 'Present').length;
+    const lateToday = todaysRecords.filter((item) => item.status === 'Late').length;
+    const absentToday = todaysRecords.filter((item) => item.status === 'Absent').length;
+
+    const denominator = records.length || 1;
+    const attendanceRate = Math.round(
+      ((records.filter((item) => item.status === 'Present' || item.status === 'Late').length) /
+        denominator) *
+        100
+    );
+
+    this.stats.set([
       { label: 'Attendance Rate', value: `${attendanceRate}%`, icon: 'percent', color: '#4f46e5' },
-      { label: 'Present Days', value: String(presentCount), icon: 'how_to_reg', color: '#10b981' },
-      { label: 'Late Days', value: String(lateCount), icon: 'schedule', color: '#f59e0b' },
-      { label: 'Absent Days', value: String(absentCount), icon: 'person_off', color: '#ef4444' },
-    ];
+      { label: 'Present Today', value: String(presentToday), icon: 'how_to_reg', color: '#10b981' },
+      { label: 'Late Today', value: String(lateToday), icon: 'schedule', color: '#f59e0b' },
+      { label: 'Absent Today', value: String(absentToday), icon: 'person_off', color: '#ef4444' },
+    ]);
   }
 
   private getLoggedInStudentEmail(): string {

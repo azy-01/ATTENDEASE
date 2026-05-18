@@ -1,7 +1,6 @@
-import { Component, Input, Output, EventEmitter, HostListener, computed, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import Swal from 'sweetalert2';
 import { NotificationService } from '../../core/data/notification.service';
 
 @Component({
@@ -12,10 +11,10 @@ import { NotificationService } from '../../core/data/notification.service';
   styleUrls: ['./student-header.scss'],
 })
 export class StudentHeaderComponent {
-  private readonly authSessionStorageKey = 'attendease-auth-session';
   private readonly themeStorageKey = 'attendease-theme';
   private readonly router = inject(Router);
   readonly notificationService = inject(NotificationService);
+  private readonly notificationRole = 'student' as const;
 
   @Input() pageTitle: string = 'Student Dashboard';
   @Input() pageSubtitle: string = 'Welcome';
@@ -26,8 +25,8 @@ export class StudentHeaderComponent {
   profileMenuOpen = false;
   notificationMenuOpen = false;
   isDarkMode = localStorage.getItem(this.themeStorageKey) === 'dark';
-  readonly notifications = this.notificationService.items;
-  readonly unreadCount = computed(() => this.notificationService.unreadCount());
+  readonly notifications = this.notificationService.itemsForRole(this.notificationRole);
+  readonly unreadCount = this.notificationService.unreadCountForRole(this.notificationRole);
 
   get userInitial(): string {
     return this.userName ? this.userName.charAt(0).toUpperCase() : 'S';
@@ -72,32 +71,13 @@ export class StudentHeaderComponent {
 
   markAllNotificationsAsRead(event: Event): void {
     event.stopPropagation();
-    this.notificationService.markAllAsRead();
+    this.notificationService.markAllAsRead(this.notificationRole);
   }
 
-  async logout(event: Event): Promise<void> {
+  logout(event: Event): void {
     event.stopPropagation();
-    const result = await Swal.fire({
-      title: 'Log out?',
-      text: 'You will need to sign in again to continue.',
-      icon: 'warning',
-      customClass: {
-        popup: 'swal-delete-popup',
-      },
-      showCancelButton: true,
-      confirmButtonText: 'Yes, log out',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
-      reverseButtons: true,
-    });
-
-    if (!result.isConfirmed) {
-      return;
-    }
-
-    localStorage.removeItem(this.authSessionStorageKey);
     this.profileMenuOpen = false;
     this.notificationMenuOpen = false;
-    void this.router.navigate(['/']);
+    void this.router.navigate(['/logout']);
   }
 }

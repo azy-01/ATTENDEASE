@@ -1,11 +1,21 @@
 import { Injectable, computed, signal } from '@angular/core';
 
+export type NotificationRole = 'instructor' | 'student' | 'admin' | 'superadmin';
+
+const NOTIFICATION_ROLES: readonly NotificationRole[] = [
+  'instructor',
+  'student',
+  'admin',
+  'superadmin',
+];
+
 export interface ActivityNotification {
   id: string;
   title: string;
   message: string;
   createdAt: string;
   read: boolean;
+  audience: NotificationRole;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -13,26 +23,39 @@ export class NotificationService {
   private readonly storageKey = 'attendease-notifications';
   private readonly maxItems = 50;
 
-  readonly items = signal<ActivityNotification[]>(this.loadItems());
-  readonly unreadCount = computed(() => this.items().filter((item) => !item.read).length);
+  private readonly allItems = signal<ActivityNotification[]>(this.loadItems());
 
-  add(title: string, message: string): void {
+  itemsForRole(role: NotificationRole) {
+    return computed(() => this.allItems().filter((item) => item.audience === role));
+  }
+
+  unreadCountForRole(role: NotificationRole) {
+    return computed(() => this.allItems().filter((item) => item.audience === role && !item.read).length);
+  }
+
+  add(title: string, message: string, audience: NotificationRole): void {
     const nextItem: ActivityNotification = {
       id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       title: title.trim(),
       message: message.trim(),
       createdAt: new Date().toISOString(),
       read: false,
+      audience,
     };
 
-    const updated = [nextItem, ...this.items()].slice(0, this.maxItems);
-    this.items.set(updated);
+    const roleItems = this.allItems().filter((item) => item.audience === audience);
+    const otherItems = this.allItems().filter((item) => item.audience !== audience);
+    const updatedForRole = [nextItem, ...roleItems].slice(0, this.maxItems);
+    const updated = [...updatedForRole, ...otherItems];
+    this.allItems.set(updated);
     this.persist(updated);
   }
 
-  markAllAsRead(): void {
-    const updated = this.items().map((item) => ({ ...item, read: true }));
-    this.items.set(updated);
+  markAllAsRead(audience: NotificationRole): void {
+    const updated = this.allItems().map((item) =>
+      item.audience === audience ? { ...item, read: true } : item
+    );
+    this.allItems.set(updated);
     this.persist(updated);
   }
 
@@ -41,15 +64,29 @@ export class NotificationService {
     if (!raw) return [];
 
     try {
-      const parsed = JSON.parse(raw) as ActivityNotification[];
+      const parsed = JSON.parse(raw) as Partial<ActivityNotification>[];
       if (!Array.isArray(parsed)) return [];
-      return parsed.filter((item) =>
-        Boolean(item?.id && item?.title && item?.message && item?.createdAt)
-      );
+      return parsed
+        .filter((item) => Boolean(item?.id && item?.title && item?.message && item?.createdAt))
+        .map((item) => ({
+          id: item.id!,
+          title: item.title!,
+          message: item.message!,
+          createdAt: item.createdAt!,
+          read: Boolean(item.read),
+          audience: this.normalizeAudience(item.audience),
+        }));
     } catch {
       localStorage.removeItem(this.storageKey);
       return [];
     }
+  }
+
+  private normalizeAudience(audience: NotificationRole | undefined): NotificationRole {
+    if (audience && NOTIFICATION_ROLES.includes(audience)) {
+      return audience;
+    }
+    return 'instructor';
   }
 
   private persist(items: ActivityNotification[]): void {

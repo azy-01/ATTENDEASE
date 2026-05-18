@@ -1,8 +1,10 @@
 import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { StudentApiService } from '../core/data/student-api.service';
+import { VerificationUploadService } from '../core/data/verification-upload.service';
+import { getGmailValidationError } from '../core/utils/gmail.utils';
 
 export interface Student {
   name: string;
@@ -69,7 +71,9 @@ export class LandingComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly router: Router,
+    private readonly route: ActivatedRoute,
     private readonly studentApi: StudentApiService,
+    private readonly verificationUpload: VerificationUploadService,
     private readonly cdr: ChangeDetectorRef
   ) { }
   private readonly themeStorageKey = 'attendease-theme';
@@ -139,6 +143,9 @@ export class LandingComponent implements OnInit, OnDestroy {
     firstName: '', lastName: '', email: '', password: ''
   };
 
+  instructorVerificationFiles: File[] = [];
+  studentVerificationFiles: File[] = [];
+
   sectionOptions = [
     'BSIT-1A', 'BSIT-1B', 'BSIT-2A', 'BSIT-2B',
     'BSIT-3A', 'BSIT-3B', 'BSIT-4A', 'BSIT-4B',
@@ -152,6 +159,17 @@ export class LandingComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.initializeTheme();
     this.setupScrollReveal();
+    this.route.queryParamMap.subscribe((params) => {
+      if (params.get('signedOut') === '1') {
+        this.showToast('You have been signed out successfully.', '#4F46E5', 'rgba(79,70,229,.4)');
+        void this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { signedOut: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+      }
+    });
   }
   ngOnDestroy(): void { if (this.toastTimer) clearTimeout(this.toastTimer); }
 
@@ -228,6 +246,11 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.formErrors = {};
     this.showPassword = false;
     this.showConfirmPassword = false;
+    if (view === 'signup-instructor' || view === 'signup-student') {
+      return;
+    }
+    this.instructorVerificationFiles = [];
+    this.studentVerificationFiles = [];
   }
 
   private resetForms(): void {
@@ -239,6 +262,56 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.loginForm = { email: '', password: '' };
     this.instructorForm = { firstName: '', lastName: '', gmail: '', password: '', confirmPassword: '' };
     this.studentForm = { firstName: '', lastName: '', email: '', password: '' };
+    this.instructorVerificationFiles = [];
+    this.studentVerificationFiles = [];
+  }
+
+  onVerificationFilesSelected(event: Event, role: 'instructor' | 'student'): void {
+    const input = event.target as HTMLInputElement;
+    const selected = Array.from(input.files ?? []);
+    input.value = '';
+    if (!selected.length) return;
+
+    const existing = role === 'instructor' ? this.instructorVerificationFiles : this.studentVerificationFiles;
+    const merged = [...existing, ...selected].slice(0, this.verificationUpload.maxFiles);
+    const validationError = this.verificationUpload.validateFiles(merged);
+    if (validationError) {
+      this.formErrors['verification'] = validationError;
+      return;
+    }
+
+    if (role === 'instructor') {
+      this.instructorVerificationFiles = merged;
+    } else {
+      this.studentVerificationFiles = merged;
+    }
+    delete this.formErrors['verification'];
+    this.cdr.markForCheck();
+  }
+
+  removeVerificationFile(index: number, role: 'instructor' | 'student'): void {
+    if (role === 'instructor') {
+      this.instructorVerificationFiles = this.instructorVerificationFiles.filter((_, i) => i !== index);
+    } else {
+      this.studentVerificationFiles = this.studentVerificationFiles.filter((_, i) => i !== index);
+    }
+    delete this.formErrors['verification'];
+    this.cdr.markForCheck();
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  private validateVerificationUpload(files: File[]): boolean {
+    const validationError = this.verificationUpload.validateFiles(files);
+    if (validationError) {
+      this.formErrors['verification'] = validationError;
+      return false;
+    }
+    return true;
   }
 
   private storeAuthSession(role: 'instructor' | 'student' | 'admin' | 'superadmin', fullName: string, email: string): void {
@@ -253,10 +326,6 @@ export class LandingComponent implements OnInit, OnDestroy {
   }
 
   // ── Validation ────────────────────────────────────────────
-  private isValidGmail(email: string): boolean {
-    return /^[^\s@]+@gmail\.com$/.test(email);
-  }
-
   private isValidPassword(pw: string): boolean {
     return pw.length >= 8;
   }
@@ -315,8 +384,10 @@ export class LandingComponent implements OnInit, OnDestroy {
 
       this.isLoading = false;
       this.closeModal();
-      if (role === 'instructor' || role === 'admin' || role === 'superadmin') {
+      if (role === 'instructor') {
         void this.router.navigate(['/instructor/overview']);
+      } else if (role === 'admin' || role === 'superadmin') {
+        void this.router.navigate(['/instructor/students']);
       } else {
         void this.router.navigate(['/student/overview']);
       }
@@ -334,11 +405,15 @@ export class LandingComponent implements OnInit, OnDestroy {
     if (!f.firstName) this.formErrors['firstName'] = 'First name is required.';
     if (!f.lastName) this.formErrors['lastName'] = 'Last name is required.';
     if (!f.gmail) this.formErrors['gmail'] = 'Gmail address is required.';
-    else if (!this.isValidGmail(f.gmail)) this.formErrors['gmail'] = 'Please enter a valid @gmail.com address.';
+    else {
+      const gmailError = getGmailValidationError(f.gmail);
+      if (gmailError) this.formErrors['gmail'] = gmailError;
+    }
     if (!f.password) this.formErrors['password'] = 'Password is required.';
     else if (!this.isValidPassword(f.password)) this.formErrors['password'] = 'Password must be at least 8 characters.';
     if (!f.confirmPassword) this.formErrors['confirmPassword'] = 'Please confirm your password.';
     else if (f.password !== f.confirmPassword) this.formErrors['confirmPassword'] = 'Passwords do not match.';
+    if (!this.validateVerificationUpload(this.instructorVerificationFiles)) { /* keep verification error */ }
     if (Object.keys(this.formErrors).length) return;
 
     this.isLoading = true;
@@ -348,7 +423,8 @@ export class LandingComponent implements OnInit, OnDestroy {
         firstName: f.firstName,
         lastName: f.lastName,
         email: f.gmail,
-        password: f.password
+        password: f.password,
+        verificationFiles: this.instructorVerificationFiles
       });
       this.closeModal();
       this.showToast('Account submitted. Please wait for admin approval before logging in.', '#4F46E5', 'rgba(79,70,229,.4)');
@@ -367,9 +443,14 @@ export class LandingComponent implements OnInit, OnDestroy {
     const f = this.studentForm;
     if (!f.firstName) this.formErrors['firstName'] = 'First name is required.';
     if (!f.lastName) this.formErrors['lastName'] = 'Last name is required.';
-    if (!f.email) this.formErrors['email'] = 'Email is required.';
+    if (!f.email) this.formErrors['email'] = 'Gmail address is required.';
+    else {
+      const gmailError = getGmailValidationError(f.email);
+      if (gmailError) this.formErrors['email'] = gmailError;
+    }
     if (!f.password) this.formErrors['password'] = 'Password is required.';
     else if (!this.isValidPassword(f.password)) this.formErrors['password'] = 'Password must be at least 8 characters.';
+    if (!this.validateVerificationUpload(this.studentVerificationFiles)) { /* keep verification error */ }
     if (Object.keys(this.formErrors).length) return;
 
     this.isLoading = true;
@@ -379,7 +460,8 @@ export class LandingComponent implements OnInit, OnDestroy {
         firstName: f.firstName,
         lastName: f.lastName,
         email: f.email,
-        password: f.password
+        password: f.password,
+        verificationFiles: this.studentVerificationFiles
       });
       this.closeModal();
       this.showToast('Account submitted. Please wait for admin approval before logging in.', '#4F46E5', 'rgba(79,70,229,.4)');

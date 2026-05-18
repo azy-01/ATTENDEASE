@@ -44,7 +44,15 @@ import { NotificationService } from '../../../core/data/notification.service';
           <div class="actions">
             <button type="button" class="btn-secondary" (click)="openStudentsView(classItem)">View</button>
             <button type="button" *ngIf="isAdmin" (click)="editClass(classItem)">Edit</button>
-            <button type="button" *ngIf="isAdmin" class="danger" (click)="deleteClass(classItem)">Delete</button>
+            <button type="button" *ngIf="isAdmin" class="archive-btn" (click)="archiveClass(classItem)" aria-label="Archive class">
+              <svg class="archive-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M20.54 5.23l-1.39-1.68A2 2 0 0 0 17.52 3H6.48c-.66 0-1.26.33-1.62.88L3.46 5.23A1 1 0 0 0 4 7h16a1 1 0 0 0 .54-1.77zM5.12 9l.81 9.12A2 2 0 0 0 7.92 20h8.16a2 2 0 0 0 1.99-1.88L18.88 9H5.12z"
+                />
+              </svg>
+              <span>Archive</span>
+            </button>
           </div>
         </article>
       </div>
@@ -225,12 +233,18 @@ import { NotificationService } from '../../../core/data/notification.service';
     .class-schedule { margin-top: 6px; font-weight: 600; color: #374151; }
     .class-extra { margin-top: 4px; font-size: 12px; color: #6b7280; }
     small { color: #9ca3af; display: inline-block; margin-top: 8px; }
-    .actions { display: flex; gap: 8px; margin-top: 14px; }
-    .actions button {
-      flex: 1; height: 34px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; cursor: pointer;
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center; }
+    .actions button:not(.archive-btn) {
+      flex: 1; min-width: 72px; height: 34px; border: 1px solid #e5e7eb; border-radius: 8px;
+      background: #fff; cursor: pointer; font-size: 12px; font-weight: 600;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .actions button:not(.archive-btn):hover {
+      background: #f9fafb;
+      border-color: #d1d5db;
     }
     .actions button.btn-secondary { color: #374151; }
-    .actions button.danger { color: #dc2626; border-color: #fecaca; }
+    .actions .archive-btn { flex: 0 0 auto; height: 34px; }
     .student-list {
       margin-top: 12px;
       border-top: 1px solid #f0f2f6;
@@ -445,8 +459,8 @@ import { NotificationService } from '../../../core/data/notification.service';
     .dark-mode .class-extra { color: #94a3b8; }
     :host-context(body.dark-mode) small,
     .dark-mode small { color: #64748b; }
-    :host-context(body.dark-mode) .actions button,
-    .dark-mode .actions button {
+    :host-context(body.dark-mode) .actions button:not(.archive-btn),
+    .dark-mode .actions button:not(.archive-btn) {
       background: #0f172a;
       border-color: #374151;
       color: #cbd5e1;
@@ -697,11 +711,11 @@ export class ClassesComponent {
       try {
         const created = await this.api.addInstructorClass(newClass);
         this.classes.set([...this.classes(), created]);
-        this.notifications.add('Class created', `${created.name} was created successfully.`);
+        this.notifications.add('Class created', `${created.name} was created successfully.`, 'instructor');
         await this.syncInstructorAllowedClasses();
       } catch {
         this.classes.set([...this.classes(), newClass]);
-        this.notifications.add('Class created', `${newClass.name} was created successfully.`);
+        this.notifications.add('Class created', `${newClass.name} was created successfully.`, 'instructor');
       }
       this.closeModal();
       return;
@@ -712,13 +726,13 @@ export class ClassesComponent {
       this.classes.set(
         this.classes().map((row) => (row.id !== this.editingClassId ? row : updated))
       );
-      this.notifications.add('Class updated', `${updated.name} was updated.`);
+      this.notifications.add('Class updated', `${updated.name} was updated.`, 'instructor');
       await this.syncInstructorAllowedClasses();
     } catch {
       this.classes.set(
         this.classes().map((row) => (row.id !== this.editingClassId ? row : draft))
       );
-      this.notifications.add('Class updated', `${draft.name} was updated.`);
+      this.notifications.add('Class updated', `${draft.name} was updated.`, 'instructor');
     }
     this.closeModal();
   }
@@ -828,32 +842,55 @@ export class ClassesComponent {
       .filter((instructor): instructor is AuthAccount => Boolean(instructor));
   }
 
-  async deleteClass(classItem: InstructorClass): Promise<void> {
+  async archiveClass(classItem: InstructorClass): Promise<void> {
     const result = await Swal.fire({
-      title: 'Delete class?',
-      text: `This will permanently remove ${classItem.name}.`,
+      title: 'Archive class?',
+      html: `<p style="margin:0;color:#6b7280;font-size:13px;">
+        This will remove <strong>${classItem.name}</strong> from active classes and unassign all instructors.</p>`,
+      input: 'textarea',
+      inputLabel: 'Reason for archiving',
+      inputPlaceholder: 'Explain why this class is being archived...',
+      inputAttributes: {
+        'aria-label': 'Reason for archiving'
+      },
+      inputValidator: (value) => {
+        if (!value?.trim()) {
+          return 'A reason is required before archiving.';
+        }
+        return null;
+      },
       icon: 'warning',
       customClass: {
         popup: 'swal-delete-popup',
       },
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete',
+      confirmButtonText: 'Archive class',
       cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
+      confirmButtonColor: '#b91c1c',
       reverseButtons: true,
     });
 
-    if (!result.isConfirmed) {
+    if (!result.isConfirmed || typeof result.value !== 'string') {
       return;
     }
 
     try {
-      await this.api.deleteInstructorClass(classItem.id);
-    } catch {
-      // Keep UI responsive with local removal fallback.
+      const archived = await this.api.archiveInstructorClass(
+        classItem.id,
+        result.value.trim(),
+        this.getAdminEmail()
+      );
+      if (!archived) {
+        this.notifications.add('Archive failed', `Unable to archive ${classItem.name}.`, 'instructor');
+        return;
+      }
+      this.classes.set(this.classes().filter((row) => row.id !== classItem.id));
+      await this.syncInstructorAllowedClasses();
+      this.notifications.add('Class archived', `${classItem.name} was moved to Archives.`, 'instructor');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to archive class.';
+      this.notifications.add('Archive failed', message, 'instructor');
     }
-    this.classes.set(this.classes().filter((row) => row.id !== classItem.id));
-    await this.syncInstructorAllowedClasses();
   }
 
   openStudentsView(classItem: InstructorClass): void {
@@ -955,6 +992,19 @@ export class ClassesComponent {
       })
     );
     await this.loadInstructors();
+  }
+
+  private getAdminEmail(): string {
+    const rawSession = localStorage.getItem(this.authSessionStorageKey);
+    if (!rawSession) {
+      return 'admin';
+    }
+    try {
+      const parsed = JSON.parse(rawSession) as { email?: string };
+      return parsed.email?.trim().toLowerCase() || 'admin';
+    } catch {
+      return 'admin';
+    }
   }
 
   private resolveSessionRole(): void {

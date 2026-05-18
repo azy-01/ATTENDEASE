@@ -193,7 +193,7 @@
         <div class="footer-col-title">Contact</div>
         <div class="footer-contact-item"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>support&#64;attendease.com</div>
         <div class="footer-contact-item"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+63 912 345 6789</div>
-        <div class="footer-contact-item"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Manila, Philippines</div>
+        <div class="footer-contact-item"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Villanueva, Misamis Oriental, Philippines</div>
       </div>
     </div>
     <hr class="footer-divider"/>
@@ -225,12 +225,12 @@
       <h2 class="modal-title">Welcome back</h2>
       <p class="modal-sub">Log in to your account to continue.</p>
       <p class="modal-sub">
-        Demo accounts: Superadmin (superadmin@attendease.com / SuperAdmin123), Instructor (instructor@gmail.com / Instructor123), or Student (student@email.com or student@gmail.com / Student123)
+        Demo accounts: Superadmin (superadmin@attendease.com / SuperAdmin123), Instructor (instructor@gmail.com / Instructor123), or Student (student@gmail.com / Student123). New sign-ups require a real @gmail.com address.
       </p>
 
       <div class="form-group">
         <label>Email Address</label>
-        <input type="email" [(ngModel)]="loginForm.email" placeholder="you@email.com" [class.error]="formErrors['email']"/>
+        <input type="email" [(ngModel)]="loginForm.email" placeholder="you@gmail.com or admin email" [class.error]="formErrors['email']"/>
         <div class="field-error" *ngIf="formErrors['email']">{{ formErrors['email'] }}</div>
       </div>
 
@@ -321,6 +321,7 @@
         <label>Gmail Address</label>
         <input type="email" [(ngModel)]="instructorForm.gmail" placeholder="instructor@gmail.com" [class.error]="formErrors['gmail']"/>
         <div class="field-error" *ngIf="formErrors['gmail']">{{ formErrors['gmail'] }}</div>
+        <p class="field-hint">Use your real @gmail.com address (6+ characters) so approval or rejection notices can reach your inbox.</p>
       </div>
 
       <div class="form-group">
@@ -345,6 +346,30 @@
           </button>
         </div>
         <div class="field-error" *ngIf="formErrors['confirmPassword']">{{ formErrors['confirmPassword'] }}</div>
+      </div>
+
+      <div class="form-group verification-upload">
+        <label>Proof of identity <span class="label-hint">(required)</span></label>
+        <p class="field-hint">Upload a school ID or faculty ID photo (JPG, PNG, or PDF — max 400 KB each, up to 2 files). Works on the free Firebase plan.</p>
+        <label class="file-upload-btn" [class.has-files]="instructorVerificationFiles.length">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            multiple
+            (change)="onVerificationFilesSelected($event, 'instructor')"
+            [disabled]="isLoading"
+            hidden
+          />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>{{ instructorVerificationFiles.length ? 'Add more files' : 'Choose files' }}</span>
+        </label>
+        <ul class="file-list" *ngIf="instructorVerificationFiles.length">
+          <li *ngFor="let file of instructorVerificationFiles; let i = index">
+            <span class="file-name">{{ file.name }} ({{ formatFileSize(file.size) }})</span>
+            <button type="button" class="file-remove-btn" (click)="removeVerificationFile(i, 'instructor')" [disabled]="isLoading" aria-label="Remove file">Remove</button>
+          </li>
+        </ul>
+        <div class="field-error" *ngIf="formErrors['verification']">{{ formErrors['verification'] }}</div>
       </div>
 
       <button class="btn-modal-submit" (click)="onInstructorSignup()" [disabled]="isLoading">
@@ -384,9 +409,10 @@
       </div>
 
       <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" [(ngModel)]="studentForm.email" placeholder="student@email.com" [class.error]="formErrors['email']"/>
+        <label>Gmail Address</label>
+        <input type="email" [(ngModel)]="studentForm.email" placeholder="student@gmail.com" [class.error]="formErrors['email']"/>
         <div class="field-error" *ngIf="formErrors['email']">{{ formErrors['email'] }}</div>
+        <p class="field-hint">Use your real @gmail.com address (6+ characters) so approval or rejection notices can reach your inbox.</p>
       </div>
 
       <div class="form-group">
@@ -401,7 +427,29 @@
         <div class="field-error" *ngIf="formErrors['password']">{{ formErrors['password'] }}</div>
       </div>
 
-
+      <div class="form-group verification-upload">
+        <label>Proof of identity <span class="label-hint">(required)</span></label>
+        <p class="field-hint">Upload a school ID or enrollment proof photo (JPG, PNG, or PDF — max 400 KB each, up to 2 files). Works on the free Firebase plan.</p>
+        <label class="file-upload-btn" [class.has-files]="studentVerificationFiles.length">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            multiple
+            (change)="onVerificationFilesSelected($event, 'student')"
+            [disabled]="isLoading"
+            hidden
+          />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>{{ studentVerificationFiles.length ? 'Add more files' : 'Choose files' }}</span>
+        </label>
+        <ul class="file-list" *ngIf="studentVerificationFiles.length">
+          <li *ngFor="let file of studentVerificationFiles; let i = index">
+            <span class="file-name">{{ file.name }} ({{ formatFileSize(file.size) }})</span>
+            <button type="button" class="file-remove-btn" (click)="removeVerificationFile(i, 'student')" [disabled]="isLoading" aria-label="Remove file">Remove</button>
+          </li>
+        </ul>
+        <div class="field-error" *ngIf="formErrors['verification']">{{ formErrors['verification'] }}</div>
+      </div>
 
       <button class="btn-modal-submit" (click)="onStudentSignup()" [disabled]="isLoading">
         <span *ngIf="!isLoading">Create Account</span>

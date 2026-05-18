@@ -1,12 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import {
   StudentApiService,
   type AttendanceRecord,
+  type AuthAccount,
   type InstructorClass,
   type InstructorSession
 } from '../../../core/data/student-api.service';
+import { getTodayDateKey, isSameCalendarDate, toCalendarDateKey } from '../../../core/utils/date.utils';
 
 interface StatCard {
   label: string;
@@ -33,19 +35,23 @@ export class OverviewComponent implements OnInit {
     private readonly studentApi: StudentApiService
   ) {}
 
+  readonly isLoading = signal(true);
+
   // ── Stats ──────────────────────────────────────────────
-  stats: StatCard[] = [
+  readonly stats = signal<StatCard[]>([
     { label: 'Present Today', value: 0, icon: 'how_to_reg', color: '#10b981' },
     { label: 'Absent Today', value: 0, icon: 'person_off', color: '#ef4444' },
     { label: 'Late Today', value: 0, icon: 'schedule', color: '#f59e0b' },
-    { label: 'Total Students', value: 2, icon: 'group', color: '#6366f1' },
-  ];
+    { label: 'Total Students', value: 0, icon: 'group', color: '#6366f1' },
+  ]);
 
-  attendanceLogs: Array<{ student: string; subject: string; class: string; timeIn: string; status: string }> = [];
-  recentSessions: string[] = [];
-  assignedClasses: string[] = [];
-  assignedSubjects: string[] = [];
-  attendanceRate: number = 0;
+  readonly attendanceLogs = signal<
+    Array<{ student: string; subject: string; class: string; timeIn: string; status: string }>
+  >([]);
+  readonly recentSessions = signal<string[]>([]);
+  readonly assignedClasses = signal<string[]>([]);
+  readonly assignedSubjects = signal<string[]>([]);
+  readonly attendanceRate = signal(0);
 
   // ── Calendar ───────────────────────────────────────────
   dayNames: string[] = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -116,43 +122,51 @@ export class OverviewComponent implements OnInit {
   }
 
   private async loadInstructorOverviewData(): Promise<void> {
-    const rawSession = localStorage.getItem('attendease-auth-session');
-    if (!rawSession) {
-      this.clearInstructorData();
-      return;
-    }
-
+    this.isLoading.set(true);
     try {
+      const rawSession = localStorage.getItem('attendease-auth-session');
+      if (!rawSession) {
+        this.clearInstructorData();
+        return;
+      }
+
       const session = JSON.parse(rawSession) as { role?: string; email?: string };
       const role = session.role;
       const email = (session.email ?? '').trim().toLowerCase();
-      if (role !== 'instructor' || !email) {
+      const isStaff = role === 'admin' || role === 'superadmin';
+      if ((role !== 'instructor' && !isStaff) || !email) {
         this.clearInstructorData();
         return;
       }
 
-      const account = await this.studentApi.getAuthAccountByEmail('instructor', email);
-      if (!account?.id) {
-        this.clearInstructorData();
-        return;
-      }
-
-      const [classes, attendance, sessions] = await Promise.all([
+      const [classes, attendance] = await Promise.all([
         this.studentApi.getInstructorClasses(),
         this.studentApi.getAttendanceRecords(),
-        this.studentApi.getInstructorSessionsForOwner(account.id)
       ]);
 
-      const allowedClassIds = account.allowedClassIds ?? [];
-      const scopedClasses = classes.filter((item) => allowedClassIds.includes(item.id));
-      const scopedClassNames = new Set(
-        scopedClasses.map((item) => item.name.trim().toLowerCase()).filter((name) => Boolean(name))
-      );
-      const scopedSubjects = new Set(
-        (account?.allowedSubjects ?? [])
-          .map((item) => item.trim())
-          .filter((item) => Boolean(item))
-      );
+      let scopedClasses = classes;
+      let scopedSubjects = new Set<string>();
+      let sessions: InstructorSession[] = [];
+
+      if (isStaff) {
+        scopedClasses = classes.filter((item) => item.status !== 'archived');
+      } else {
+        const account = await this.studentApi.getAuthAccountByEmail('instructor', email);
+        if (!account?.id) {
+          this.clearInstructorData();
+          return;
+        }
+
+        scopedClasses = this.resolveScopedClasses(classes, account);
+        scopedSubjects = new Set(
+          (account.allowedSubjects ?? [])
+            .map((item) => item.trim())
+            .filter((item) => Boolean(item))
+        );
+        sessions = await this.studentApi.getInstructorSessionsForOwner(account.id);
+      }
+
+      const scopedSectionKeys = this.buildScopedSectionKeys(scopedClasses);
       const scopedSubjectNamesLower = new Set(
         Array.from(scopedSubjects).map((item) => item.toLowerCase())
       );
@@ -160,7 +174,7 @@ export class OverviewComponent implements OnInit {
       const relevantAttendance = attendance.filter((item) => {
         const section = (item.section ?? '').trim().toLowerCase();
         const subject = (item.subject ?? '').trim().toLowerCase();
-        const classMatches = scopedClassNames.size > 0 && scopedClassNames.has(section);
+        const classMatches = scopedSectionKeys.size > 0 && scopedSectionKeys.has(section);
         if (!classMatches) {
           return false;
         }
@@ -168,67 +182,120 @@ export class OverviewComponent implements OnInit {
       });
       const relevantSessions = this.filterRelevantSessions(
         sessions,
-        scopedClassNames,
+        scopedSectionKeys,
         scopedSubjectNamesLower
       );
 
-      this.assignedClasses = this.uniqueClassNames(scopedClasses);
-      this.assignedSubjects = scopedSubjects.size > 0
-        ? Array.from(scopedSubjects)
-        : this.uniqueAssignedSubjectsFromClasses(scopedClasses);
-      this.attendanceLogs = relevantAttendance
-        .sort((first, second) => this.toUnix(second.date) - this.toUnix(first.date))
-        .slice(0, 5)
-        .map((item) => ({
-          student: item.studentName ?? item.studentEmail ?? 'Unknown student',
-          subject: item.subject,
-          class: item.section,
-          timeIn: item.timeIn,
-          status: item.status
-        }));
-      this.recentSessions = relevantSessions
-        .slice(0, 5)
-        .map((item) => `${item.subject} - ${item.section} (${item.date})`);
+      this.assignedClasses.set(this.uniqueClassNames(scopedClasses));
+      this.assignedSubjects.set(
+        scopedSubjects.size > 0
+          ? Array.from(scopedSubjects)
+          : this.uniqueAssignedSubjectsFromClasses(scopedClasses)
+      );
+      this.attendanceLogs.set(
+        relevantAttendance
+          .sort((first, second) => this.toUnix(second.date) - this.toUnix(first.date))
+          .slice(0, 5)
+          .map((item) => ({
+            student: item.studentName ?? item.studentEmail ?? 'Unknown student',
+            subject: item.subject,
+            class: item.section,
+            timeIn: item.timeIn,
+            status: item.status
+          }))
+      );
+      this.recentSessions.set(
+        relevantSessions
+          .slice(0, 5)
+          .map((item) => `${item.subject} - ${item.section} (${item.date})`)
+      );
       this.applyTodayStats(relevantAttendance, scopedClasses);
     } catch {
       this.clearInstructorData();
+    } finally {
+      this.isLoading.set(false);
     }
+  }
+
+  private resolveScopedClasses(classes: InstructorClass[], account: AuthAccount): InstructorClass[] {
+    const allowedClassIds = account.allowedClassIds ?? [];
+    let scopedClasses = allowedClassIds.length
+      ? classes.filter((item) => allowedClassIds.includes(item.id))
+      : [];
+
+    if (!scopedClasses.length && account.id) {
+      scopedClasses = classes.filter((item) =>
+        (item.assignedInstructorIds ?? []).includes(account.id)
+      );
+    }
+
+    return scopedClasses;
+  }
+
+  private buildScopedSectionKeys(classes: InstructorClass[]): Set<string> {
+    const keys = new Set<string>();
+    for (const classItem of classes) {
+      const name = classItem.name.trim().toLowerCase();
+      const section = (classItem.section ?? '').trim().toLowerCase();
+      if (name) {
+        keys.add(name);
+      }
+      if (section) {
+        keys.add(section);
+      }
+    }
+    return keys;
+  }
+
+  private countUniqueStudents(classes: InstructorClass[]): number {
+    const studentIds = new Set<string>();
+    for (const classItem of classes) {
+      for (const studentId of classItem.assignedStudentIds ?? []) {
+        if (studentId.trim()) {
+          studentIds.add(studentId);
+        }
+      }
+    }
+    return studentIds.size;
   }
 
   private applyTodayStats(records: AttendanceRecord[], classes: InstructorClass[]): void {
     const today = new Date();
-    const todaysRecords = records.filter((item) => this.isSameDate(item.date, today));
+    const todayKey = getTodayDateKey(today);
+    const todaysRecords = records.filter(
+      (item) => isSameCalendarDate(item.date, today) || toCalendarDateKey(item.date) === todayKey
+    );
     const presentToday = todaysRecords.filter((item) => item.status === 'Present').length;
     const lateToday = todaysRecords.filter((item) => item.status === 'Late').length;
     const absentToday = todaysRecords.filter((item) => item.status === 'Absent').length;
     const denominator = todaysRecords.length || 1;
-    this.attendanceRate = Math.round(((presentToday + lateToday) / denominator) * 100);
+    this.attendanceRate.set(Math.round(((presentToday + lateToday) / denominator) * 100));
 
-    this.stats = [
+    this.stats.set([
       { label: 'Present Today', value: presentToday, icon: 'how_to_reg', color: '#10b981' },
       { label: 'Absent Today', value: absentToday, icon: 'person_off', color: '#ef4444' },
       { label: 'Late Today', value: lateToday, icon: 'schedule', color: '#f59e0b' },
       {
         label: 'Total Students',
-        value: classes.reduce((sum, item) => sum + (item.studentCount ?? 0), 0),
+        value: this.countUniqueStudents(classes),
         icon: 'group',
         color: '#6366f1'
       },
-    ];
+    ]);
   }
 
   private clearInstructorData(): void {
-    this.recentSessions = [];
-    this.assignedClasses = [];
-    this.assignedSubjects = [];
-    this.attendanceLogs = [];
-    this.attendanceRate = 0;
-    this.stats = [
+    this.recentSessions.set([]);
+    this.assignedClasses.set([]);
+    this.assignedSubjects.set([]);
+    this.attendanceLogs.set([]);
+    this.attendanceRate.set(0);
+    this.stats.set([
       { label: 'Present Today', value: 0, icon: 'how_to_reg', color: '#10b981' },
       { label: 'Absent Today', value: 0, icon: 'person_off', color: '#ef4444' },
       { label: 'Late Today', value: 0, icon: 'schedule', color: '#f59e0b' },
       { label: 'Total Students', value: 0, icon: 'group', color: '#6366f1' },
-    ];
+    ]);
   }
 
   private uniqueClassNames(classes: InstructorClass[]): string[] {
@@ -245,18 +312,6 @@ export class OverviewComponent implements OnInit {
           .map((subject) => subject.trim())
           .filter((subject) => Boolean(subject))
       )
-    );
-  }
-
-  private isSameDate(rawDate: string, target: Date): boolean {
-    const parsed = new Date(rawDate);
-    if (Number.isNaN(parsed.getTime())) {
-      return false;
-    }
-    return (
-      parsed.getFullYear() === target.getFullYear() &&
-      parsed.getMonth() === target.getMonth() &&
-      parsed.getDate() === target.getDate()
     );
   }
 

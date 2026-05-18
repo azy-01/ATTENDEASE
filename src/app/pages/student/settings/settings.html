@@ -10,8 +10,9 @@
     </div>
     <label>Full Name</label>
     <input [(ngModel)]="fullName" />
-    <label>Email</label>
-    <input [(ngModel)]="email" />
+    <label>Gmail Address</label>
+    <input type="email" [(ngModel)]="email" placeholder="you@gmail.com" />
+    <p class="field-hint">Use your real @gmail.com address to receive class and account notifications.</p>
   </section>
 
   <section class="card">
@@ -46,6 +47,6 @@
 
   <button type="button" class="logout-btn" (click)="logout()">
     <span class="material-icons">logout</span>
-    Logout
+    Sign out
   </button>
 </div>

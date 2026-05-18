@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import Swal from 'sweetalert2';
+import { getGmailValidationError, normalizeEmailAddress } from '../../../core/utils/gmail.utils';
 
 @Component({
   selector: 'app-student-settings',
@@ -14,8 +14,6 @@ import Swal from 'sweetalert2';
 export class StudentSettingsComponent {
   private readonly profileStorageKey = 'student-account-profile';
   private readonly settingsStorageKey = 'student-settings-preferences';
-  private readonly authSessionStorageKey = 'attendease-auth-session';
-
   fullName = 'Tiesha Kate D. Regular';
   email = 'regular.tieshakated@gmail.com';
   emailNotifications = true;
@@ -66,8 +64,14 @@ export class StudentSettingsComponent {
       return;
     }
 
+    const gmailError = getGmailValidationError(trimmedEmail);
+    if (gmailError) {
+      this.saveMessage = gmailError;
+      return;
+    }
+
     this.fullName = trimmedName;
-    this.email = trimmedEmail;
+    this.email = normalizeEmailAddress(trimmedEmail);
 
     localStorage.setItem(
       this.profileStorageKey,
@@ -87,26 +91,7 @@ export class StudentSettingsComponent {
     }, 2000);
   }
 
-  async logout(): Promise<void> {
-    const result = await Swal.fire({
-      title: 'Log out?',
-      text: 'You will need to sign in again to continue.',
-      icon: 'warning',
-      customClass: {
-        popup: 'swal-delete-popup',
-      },
-      showCancelButton: true,
-      confirmButtonText: 'Yes, log out',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#dc2626',
-      reverseButtons: true,
-    });
-
-    if (!result.isConfirmed) {
-      return;
-    }
-
-    localStorage.removeItem(this.authSessionStorageKey);
-    this.router.navigate(['/']);
+  logout(): void {
+    void this.router.navigate(['/logout']);
   }
 }

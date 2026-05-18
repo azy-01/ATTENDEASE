@@ -48,11 +48,16 @@ export class InstructorSidebarComponent implements OnInit {
   }
 
   private buildNavItems(): NavItem[] {
-    const items: NavItem[] = [
-      { route: '/instructor/overview', icon: 'dashboard', label: 'Overview' },
+    const items: NavItem[] = [];
+
+    if (this.currentRole === 'instructor') {
+      items.push({ route: '/instructor/overview', icon: 'dashboard', label: 'Overview' });
+    }
+
+    items.push(
       { route: '/instructor/students', icon: 'people', label: 'Students' },
       { route: '/instructor/classes', icon: 'menu_book', label: 'Classes' },
-    ];
+    );
 
     if (this.currentRole === 'admin' || this.currentRole === 'superadmin') {
       items.splice(
@@ -60,9 +65,9 @@ export class InstructorSidebarComponent implements OnInit {
         0,
         { route: '/instructor/instructor-accounts', icon: 'groups', label: 'Instructor Accounts' },
         { route: '/instructor/instructors', icon: 'person_add', label: 'Account Creation' },
-        { route: '/instructor/pending-account-approval', icon: 'how_to_reg', label: 'Pending Approvals' }
+        { route: '/instructor/pending-account-approval', icon: 'how_to_reg', label: 'Pending Approvals' },
+        { route: '/instructor/archived-instructor-accounts', icon: 'inventory_2', label: 'Archives' }
       );
-      items.push({ route: '/instructor/reports', icon: 'bar_chart', label: 'Reports' });
     } else {
       items.splice(
         2,
@@ -71,6 +76,7 @@ export class InstructorSidebarComponent implements OnInit {
         { route: '/instructor/schedules', icon: 'calendar_month', label: 'Schedules' },
         { route: '/instructor/records', icon: 'description', label: 'Records' }
       );
+      items.push({ route: '/instructor/reports', icon: 'bar_chart', label: 'Reports' });
     }
 
     items.push({ route: '/instructor/account', icon: 'person', label: 'Account' });

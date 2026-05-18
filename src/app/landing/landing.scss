@@ -1458,6 +1458,100 @@ footer {
     margin-top: .1rem;
 }
 
+.label-hint {
+    font-weight: 500;
+    color: $text-muted;
+}
+
+.field-hint {
+    margin: 0;
+    font-size: .78rem;
+    color: $text-muted;
+    line-height: 1.4;
+}
+
+.verification-upload {
+    margin-top: .25rem;
+}
+
+.file-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .65rem .95rem;
+    border: 1.5px dashed $border;
+    border-radius: $radius-sm;
+    background: $bg;
+    color: $text-mid;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    @include transition(border-color .2s, background .2s);
+
+    svg {
+        stroke: $primary;
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        border-color: $primary;
+        background: rgba(79, 70, 229, .04);
+    }
+
+    &.has-files {
+        border-style: solid;
+        border-color: rgba(79, 70, 229, .35);
+    }
+}
+
+.file-list {
+    list-style: none;
+    margin: .5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+
+    li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .5rem;
+        padding: .45rem .65rem;
+        border: 1px solid $border;
+        border-radius: $radius-sm;
+        background: #fff;
+        font-size: .82rem;
+    }
+
+    .file-name {
+        color: $text-mid;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.file-remove-btn {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: $danger;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: .15rem .25rem;
+
+    &:hover:not(:disabled) {
+        text-decoration: underline;
+    }
+
+    &:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+    }
+}
+
 // ── Submit button ─────────────────────────────
 .btn-modal-submit {
     width: 100%;
@@ -1711,8 +1805,29 @@ footer {
     .sid,
     .modal-sub,
     .modal-switch,
-    .footer-tagline {
+    .footer-tagline,
+    .field-hint,
+    .label-hint {
         color: #94A3B8;
+    }
+
+    .file-upload-btn {
+        background: #0F172A;
+        border-color: #334155;
+        color: #CBD5E1;
+
+        &:hover {
+            background: rgba(99, 102, 241, 0.12);
+        }
+    }
+
+    .file-list li {
+        background: #0F172A;
+        border-color: #334155;
+    }
+
+    .file-list .file-name {
+        color: #CBD5E1;
     }
 }
 
