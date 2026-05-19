@@ -1,11 +1,14 @@
 <div class="attendance-page">
 
-  <!-- Start New Session Card -->
   <div class="card">
     <h2 class="card-title">
       <span class="material-icons">play_arrow</span>
       Start New Session
     </h2>
+
+    <p class="session-hint">
+      Face-to-face sessions support instructor QR scan and manual marking. Online sessions use student manual codes only.
+    </p>
 
     <div class="form-row">
       <div class="form-group">
@@ -55,7 +58,17 @@
     <p class="success-message" *ngIf="startSuccess">{{ startSuccess }}</p>
   </div>
 
-  <!-- Recent Sessions Card -->
+  <div class="card take-attendance-card">
+    <h2 class="card-title">
+      <span class="material-icons">how_to_reg</span>
+      Take Attendance
+    </h2>
+    <app-take-attendance-panel
+      [sessions]="activeSessions()"
+      [instructorAuthId]="instructorAuthId"
+    />
+  </div>
+
   <div class="card">
     <h2 class="card-title-plain">Recent Sessions</h2>
 
@@ -72,6 +85,9 @@
           <p class="session-code" *ngIf="session.manualAttendanceCode">Manual code: {{ session.manualAttendanceCode }}</p>
         </div>
         <div class="session-actions">
+          <span class="badge mode-badge" [ngClass]="sessionModeClass(session)">
+            {{ sessionModeLabel(session) }}
+          </span>
           <span class="badge" [ngClass]="'badge-' + session.status">
             {{ session.status }}
           </span>

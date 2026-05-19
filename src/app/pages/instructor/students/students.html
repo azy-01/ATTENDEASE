@@ -1,0 +1,220 @@
+<div class="students-page">
+  <div class="stats-row">
+    <article class="stat-card">
+      <div class="stat-icon-wrap">
+        <span class="material-icons" aria-hidden="true">groups</span>
+      </div>
+      <div class="stat-content">
+        <p class="stat-label">Total students</p>
+        <p class="stat-value">{{ displayRows().length }}</p>
+      </div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon-wrap">
+        <span class="material-icons" aria-hidden="true">check_circle</span>
+      </div>
+      <div class="stat-content">
+        <p class="stat-label">Section enrollments</p>
+        <p class="stat-value">{{ totalEnrollments }}</p>
+      </div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon-wrap">
+        <span class="material-icons" aria-hidden="true">filter_list</span>
+      </div>
+      <div class="stat-content">
+        <p class="stat-label">Showing</p>
+        <p class="stat-value">{{ filteredStudents.length }}</p>
+      </div>
+    </article>
+  </div>
+
+  <section class="students-card" aria-label="Student directory">
+    <header class="card-header">
+      <div class="card-heading">
+        <h2>Student directory</h2>
+        <p>View and manage enrolled students across all sections</p>
+      </div>
+      <label class="search-wrap">
+        <span class="material-icons" aria-hidden="true">search</span>
+        <input
+          type="search"
+          placeholder="Search by name, ID, email, section, or subject..."
+          [value]="searchTerm"
+          (input)="onSearchInput($event)"
+          aria-label="Search students"
+        />
+      </label>
+    </header>
+
+    <div class="table-responsive" *ngIf="filteredStudents.length; else emptyStudents">
+      <table class="students-table">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Student ID</th>
+            <th>Email</th>
+            <th>Section</th>
+            <th>Subjects</th>
+            <th>Status</th>
+            <th *ngIf="isAdmin" class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of filteredStudents; trackBy: trackByRow">
+            <td>
+              <div class="student-cell">
+                <div class="student-avatar" aria-hidden="true">{{ getInitials(row.student.name) }}</div>
+                <span class="student-name">{{ row.student.name }}</span>
+              </div>
+            </td>
+            <td class="student-id">{{ row.student.studentId }}</td>
+            <td class="email-cell" [title]="row.student.email">{{ row.student.email }}</td>
+            <td>
+              <div class="section-badges">
+                <span class="section-badge" *ngFor="let section of row.sections">{{ section }}</span>
+              </div>
+            </td>
+            <td>
+              <button
+                type="button"
+                class="enrolled-subjects-btn"
+                (click)="openEnrolledSubjects(row)"
+                [attr.aria-label]="'View enrolled subjects for ' + row.student.name"
+              >
+                <span class="material-icons" aria-hidden="true">menu_book</span>
+                <span>Enrolled subjects</span>
+                <span class="subjects-count" *ngIf="getEnrolledSubjects(row).length">
+                  {{ getEnrolledSubjects(row).length }}
+                </span>
+              </button>
+            </td>
+            <td>
+              <span class="status-badge">active</span>
+            </td>
+            <td *ngIf="isAdmin" class="col-actions">
+              <div class="actions">
+                <button
+                  type="button"
+                  class="action-btn"
+                  (click)="editStudent(row.student)"
+                  [attr.aria-label]="'Edit ' + row.student.name"
+                >
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                </button>
+                <button
+                  type="button"
+                  class="archive-btn"
+                  (click)="archiveStudent(row.student)"
+                  [attr.aria-label]="'Archive ' + row.student.name"
+                >
+                  <svg class="archive-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M20.54 5.23l-1.39-1.68A2 2 0 0 0 17.52 3H6.48c-.66 0-1.26.33-1.62.88L3.46 5.23A1 1 0 0 0 4 7h16a1 1 0 0 0 .54-1.77zM5.12 9l.81 9.12A2 2 0 0 0 7.92 20h8.16a2 2 0 0 0 1.99-1.88L18.88 9H5.12z"
+                    />
+                  </svg>
+                  <span>Archive</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ng-template #emptyStudents>
+      <div class="empty-state">
+        <span class="material-icons" aria-hidden="true">person_off</span>
+        <p *ngIf="searchTerm.trim(); else noStudents">
+          No students match <strong>"{{ searchTerm.trim() }}"</strong>. Try a different search.
+        </p>
+        <ng-template #noStudents>
+          <p>No students enrolled yet.</p>
+        </ng-template>
+      </div>
+    </ng-template>
+  </section>
+
+  <div class="modal-backdrop" *ngIf="isSubjectsModalOpen" (click)="closeSubjectsModal()">
+    <div
+      class="modal-card subjects-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="enrolled-subjects-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-head">
+        <h3 id="enrolled-subjects-title">Enrolled subjects</h3>
+        <button type="button" class="icon-close" (click)="closeSubjectsModal()" aria-label="Close subjects modal">×</button>
+      </div>
+
+      <div class="subjects-modal-body" *ngIf="subjectsModalRow as activeRow">
+        <div class="subjects-modal-student">
+          <div class="student-avatar" aria-hidden="true">{{ getInitials(activeRow.student.name) }}</div>
+          <div>
+            <p class="subjects-modal-name">{{ activeRow.student.name }}</p>
+            <p class="subjects-modal-meta">
+              {{ activeRow.student.studentId }} · {{ activeRow.sections.join(', ') }}
+            </p>
+          </div>
+        </div>
+
+        <ul class="subjects-modal-list" *ngIf="subjectsModalSubjects.length; else noSubjects">
+          <li *ngFor="let subject of subjectsModalSubjects">
+            <span class="material-icons" aria-hidden="true">school</span>
+            <span>{{ subject }}</span>
+          </li>
+        </ul>
+        <ng-template #noSubjects>
+          <p class="subjects-modal-empty">No subjects enrolled for this student yet.</p>
+        </ng-template>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" (click)="closeSubjectsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="isAdmin && isEditModalOpen" (click)="closeEditModal()">
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-student-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-head">
+        <h3 id="edit-student-title">Edit student</h3>
+        <button type="button" class="icon-close" (click)="closeEditModal()" aria-label="Close edit modal">×</button>
+      </div>
+
+      <p class="edit-form-error" *ngIf="editErrorMessage()" role="alert">{{ editErrorMessage() }}</p>
+
+      <div class="modal-body">
+        <label>
+          <span>Full name</span>
+          <input type="text" [value]="editDraft.name" (input)="onEditFieldChange('name', $event)" />
+        </label>
+        <label>
+          <span>Student ID</span>
+          <input type="text" [value]="editDraft.studentId" (input)="onEditFieldChange('studentId', $event)" />
+        </label>
+        <label>
+          <span>Email address</span>
+          <input type="email" [value]="editDraft.email" (input)="onEditFieldChange('email', $event)" />
+        </label>
+        <label>
+          <span>Section</span>
+          <input type="text" [value]="editDraft.section" (input)="onEditFieldChange('section', $event)" />
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" (click)="closeEditModal()">Cancel</button>
+        <button type="button" class="btn-primary" (click)="saveEditedStudent()">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>

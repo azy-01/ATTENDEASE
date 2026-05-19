@@ -12,7 +12,7 @@ import { StudentApiService, type InstructorAccount } from '../../../core/data/st
       <section class="card">
         <h3>Profile</h3>
         <div class="profile-head">
-          <div class="avatar">A</div>
+          <div class="avatar">{{ userInitial }}</div>
           <div>
             <strong>{{ fullName() }}</strong>
             <p>{{ email() }}</p>
@@ -65,12 +65,17 @@ import { StudentApiService, type InstructorAccount } from '../../../core/data/st
 export class AccountComponent {
   private readonly profileStorageKey = 'instructor-account-profile';
   private readonly authSessionStorageKey = 'attendease-auth-session';
-  private accountId = 'ins-acc-1';
+  private accountId = '';
   private currentRole: 'instructor' | 'admin' | 'superadmin' = 'instructor';
 
-  readonly fullName = signal('Azryth Sacuan');
-  readonly email = signal('sacuan.azryth0@gmail.com');
+  readonly fullName = signal('');
+  readonly email = signal('');
   readonly saveMessage = signal('');
+
+  get userInitial(): string {
+    const name = this.fullName().trim();
+    return name ? name.charAt(0).toUpperCase() : '?';
+  }
 
   constructor(private readonly api: StudentApiService) {
     this.loadProfileFromSession();
@@ -116,6 +121,14 @@ export class AccountComponent {
     }
 
     try {
+      if (!this.accountId) {
+        const existing = await this.api.getInstructorAccountByEmail(trimmedEmail);
+        if (existing?.id) {
+          this.accountId = existing.id;
+          payload.id = existing.id;
+        }
+      }
+
       const updated = await this.api.updateInstructorAccount(this.accountId, payload);
       this.accountId = updated.id;
       this.fullName.set(updated.fullName);
@@ -157,15 +170,18 @@ export class AccountComponent {
   }
 
   private async loadProfileFromApi(): Promise<void> {
+    const sessionEmail = this.email().trim();
+    if (!sessionEmail) return;
+
     try {
-      const account = await this.api.getInstructorAccount();
+      const account = await this.api.getInstructorAccountByEmail(sessionEmail);
       if (!account) return;
 
       this.accountId = account.id;
       this.fullName.set(account.fullName);
       this.email.set(account.email);
     } catch {
-      // Keep local fallback values.
+      // Keep session and local fallback values.
     }
   }
 

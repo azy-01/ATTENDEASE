@@ -15,43 +15,47 @@ import { StudentApiService } from '../../../core/data/student-api.service';
 
         <ng-container *ngIf="isAdmin; else noAccess">
           <div class="admin-grid">
-            <label>
-              <span>Role</span>
-              <select [ngModel]="newAccountRole()" (ngModelChange)="newAccountRole.set($event)">
-                <option value="instructor">Instructor</option>
-                <option value="student">Student</option>
-              </select>
-            </label>
-            <label>
-              <span>First Name</span>
-              <input [ngModel]="newAccountFirstName()" (ngModelChange)="newAccountFirstName.set($event)" />
-            </label>
-            <label>
-              <span>Last Name</span>
-              <input [ngModel]="newAccountLastName()" (ngModelChange)="newAccountLastName.set($event)" />
-            </label>
-            <label>
-              <span>Gmail Address</span>
-              <input
-                type="email"
-                [ngModel]="newAccountEmail()"
-                (ngModelChange)="newAccountEmail.set($event)"
-                placeholder="name@gmail.com"
-              />
-              <span class="field-hint">Instructor and student accounts must use a real @gmail.com address for notifications.</span>
-            </label>
-            <label>
-              <span>Password</span>
-              <input type="password" [ngModel]="newAccountPassword()" (ngModelChange)="newAccountPassword.set($event)" />
-            </label>
-            <label *ngIf="newAccountRole() === 'student'">
-              <span>Student ID</span>
-              <input [ngModel]="newAccountStudentId()" (ngModelChange)="newAccountStudentId.set($event)" />
-            </label>
-            <label *ngIf="newAccountRole() === 'student'">
-              <span>Section</span>
-              <input [ngModel]="newAccountSection()" (ngModelChange)="newAccountSection.set($event)" />
-            </label>
+            <div class="admin-col">
+              <label>
+                <span>Role</span>
+                <select [ngModel]="newAccountRole()" (ngModelChange)="newAccountRole.set($event)">
+                  <option value="instructor">Instructor</option>
+                  <option value="student">Student</option>
+                </select>
+              </label>
+              <label>
+                <span>Last Name</span>
+                <input [ngModel]="newAccountLastName()" (ngModelChange)="newAccountLastName.set($event)" />
+              </label>
+              <label>
+                <span>Password</span>
+                <input type="password" [ngModel]="newAccountPassword()" (ngModelChange)="newAccountPassword.set($event)" />
+              </label>
+              <label *ngIf="newAccountRole() === 'student'">
+                <span>Student ID</span>
+                <input [ngModel]="newAccountStudentId()" (ngModelChange)="newAccountStudentId.set($event)" />
+              </label>
+            </div>
+            <div class="admin-col">
+              <label>
+                <span>First Name</span>
+                <input [ngModel]="newAccountFirstName()" (ngModelChange)="newAccountFirstName.set($event)" />
+              </label>
+              <label>
+                <span>Gmail Address</span>
+                <input
+                  type="email"
+                  [ngModel]="newAccountEmail()"
+                  (ngModelChange)="newAccountEmail.set($event)"
+                  placeholder="name@gmail.com"
+                />
+                <span class="field-hint">Instructor and student accounts must use a real @gmail.com address for notifications.</span>
+              </label>
+              <label *ngIf="newAccountRole() === 'student'">
+                <span>Section</span>
+                <input [ngModel]="newAccountSection()" (ngModelChange)="newAccountSection.set($event)" />
+              </label>
+            </div>
           </div>
           <button type="button" class="save-btn" (click)="createManagedAccount()">Create Account</button>
           <p class="save-message" *ngIf="message()">{{ message() }}</p>
@@ -68,7 +72,8 @@ import { StudentApiService } from '../../../core/data/student-api.service';
     .card { background: #fff; border: 1px solid #edf0f5; border-radius: 12px; padding: 18px; }
     h3 { margin: 0 0 8px; font-size: 20px; }
     .section-sub { margin: 0 0 14px; color: #6b7280; font-size: 13px; }
-    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; align-items: start; }
+    .admin-col { display: flex; flex-direction: column; gap: 10px; }
     label { display: block; margin: 0; font-size: 13px; color: #374151; font-weight: 600; }
     label span { display: block; margin-bottom: 6px; }
     input, select {

@@ -1,0 +1,409 @@
+.schedules-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid #f0f0f5;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.stat-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: #eef2ff;
+  color: #4f46e5;
+
+  .material-icons {
+    font-size: 20px;
+  }
+
+  &--days {
+    background: #ecfdf5;
+    color: #059669;
+  }
+
+  &--sections {
+    background: #fff7ed;
+    color: #d97706;
+  }
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stat-label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.stat-value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.1;
+}
+
+.schedule-card {
+  background: #fff;
+  border: 1px solid #f0f0f5;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #f0f2f6;
+}
+
+.card-heading {
+  h2 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #111827;
+  }
+}
+
+.manage-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.schedule-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 8px 0 12px;
+}
+
+.day-block {
+  padding: 16px 20px;
+
+  & + & {
+    border-top: 1px solid #f0f2f6;
+  }
+}
+
+.day-header {
+  margin-bottom: 12px;
+}
+
+.day-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.day-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4338ca;
+  background: #eef2ff;
+}
+
+.day-count {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.class-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.class-card {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 14px 16px;
+  background: #f9fafb;
+  border: 1px solid #f0f2f6;
+  border-radius: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: #e0e7ff;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.08);
+  }
+}
+
+.time-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.time-start,
+.time-end {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #374151;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.time-separator {
+  display: block;
+  width: 1px;
+  height: 10px;
+  background: #d1d5db;
+}
+
+.class-content {
+  min-width: 0;
+}
+
+.subject-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #4b5563;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+
+  .material-icons {
+    font-size: 14px;
+    color: #9ca3af;
+  }
+
+  &--section {
+    color: #4338ca;
+    background: #eef2ff;
+    border-color: #c7d2fe;
+
+    .material-icons {
+      color: #6366f1;
+    }
+  }
+
+  &--mode {
+    color: #065f46;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+
+    .material-icons {
+      color: #10b981;
+    }
+  }
+
+  &--online {
+    color: #1e40af;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+
+    .material-icons {
+      color: #3b82f6;
+    }
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 40px;
+  color: #d1d5db;
+}
+
+.empty-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.empty-text {
+  margin: 0;
+  max-width: 320px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .class-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .time-block {
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .time-separator {
+    width: 16px;
+    height: 1px;
+  }
+}
+
+:host-context(body.dark-mode) {
+  .stat-card,
+  .schedule-card {
+    background: #111827;
+    border-color: #1f2937;
+  }
+
+  .stat-value,
+  .card-heading h2,
+  .subject-title,
+  .empty-title {
+    color: #e2e8f0;
+  }
+
+  .stat-label,
+  .manage-note,
+  .day-count,
+  .empty-text {
+    color: #94a3b8;
+  }
+
+  .card-header,
+  .day-block + .day-block {
+    border-color: #1f2937;
+  }
+
+  .day-badge {
+    color: #c7d2fe;
+    background: #312e81;
+  }
+
+  .class-card {
+    background: #0f172a;
+    border-color: #1f2937;
+
+    &:hover {
+      border-color: #4338ca;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    }
+  }
+
+  .time-block {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .time-start,
+  .time-end {
+    color: #cbd5e1;
+  }
+
+  .time-separator {
+    background: #475569;
+  }
+
+  .meta-chip {
+    color: #cbd5e1;
+    background: #1e293b;
+    border-color: #334155;
+
+    .material-icons {
+      color: #94a3b8;
+    }
+
+    &--section {
+      color: #c7d2fe;
+      background: #312e81;
+      border-color: #4338ca;
+
+      .material-icons {
+        color: #a5b4fc;
+      }
+    }
+
+    &--mode {
+      color: #6ee7b7;
+      background: #064e3b;
+      border-color: #047857;
+
+      .material-icons {
+        color: #34d399;
+      }
+    }
+
+    &--online {
+      color: #93c5fd;
+      background: #1e3a5f;
+      border-color: #1d4ed8;
+
+      .material-icons {
+        color: #60a5fa;
+      }
+    }
+  }
+
+  .empty-icon {
+    color: #475569;
+  }
+}

@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
+import emailjs from '@emailjs/browser';
 import { environment } from '../../../environments/environment';
 import { getGmailValidationError, normalizeEmailAddress } from '../utils/gmail.utils';
+
+export type ArchivedAccountRole = 'instructor' | 'student';
 
 export interface AccountArchiveEmailPayload {
   toEmail: string;
@@ -13,6 +16,7 @@ export interface AccountStatusEmailPayload {
   recipientName: string;
   subject: string;
   message: string;
+  accountRole?: ArchivedAccountRole;
 }
 
 export interface AccountEmailResult {
@@ -26,12 +30,23 @@ export interface AccountEmailResult {
  */
 @Injectable({ providedIn: 'root' })
 export class AccountEmailService {
-  async sendArchiveNotification(payload: AccountArchiveEmailPayload): Promise<AccountEmailResult> {
+  private emailJsInitialized = false;
+
+  async sendArchiveNotification(
+    payload: AccountArchiveEmailPayload,
+    role: ArchivedAccountRole = 'instructor'
+  ): Promise<AccountEmailResult> {
+    const subject =
+      role === 'student'
+        ? 'Your AttendEase student account has been archived'
+        : 'Your AttendEase instructor account has been archived';
+
     return this.sendNotification({
       toEmail: payload.toEmail,
       recipientName: payload.recipientName,
-      subject: 'Your AttendEase instructor account has been archived',
-      message: payload.reason.trim()
+      subject,
+      message: payload.reason.trim(),
+      accountRole: role
     });
   }
 
@@ -41,6 +56,14 @@ export class AccountEmailService {
 
   async sendRejectionNotification(payload: AccountStatusEmailPayload): Promise<AccountEmailResult> {
     return this.sendNotification(payload);
+  }
+
+  private ensureEmailJsInit(publicKey: string): void {
+    if (this.emailJsInitialized) {
+      return;
+    }
+    emailjs.init({ publicKey });
+    this.emailJsInitialized = true;
   }
 
   private async sendNotification(payload: AccountStatusEmailPayload): Promise<AccountEmailResult> {
@@ -54,8 +77,8 @@ export class AccountEmailService {
       return { sent: false, message: gmailError };
     }
 
-    const emailjs = environment.accountEmail?.emailjs;
-    if (!emailjs?.serviceId || !emailjs?.templateId || !emailjs?.publicKey) {
+    const emailjsConfig = environment.accountEmail?.emailjs;
+    if (!emailjsConfig?.serviceId || !emailjsConfig?.templateId || !emailjsConfig?.publicKey) {
       return {
         sent: false,
         message:
@@ -65,37 +88,49 @@ export class AccountEmailService {
 
     const message = payload.message.trim();
     const subject = payload.subject.trim();
+    const recipientName = payload.recipientName.trim() || 'User';
+    const accountRole = payload.accountRole ?? 'instructor';
+
+    const templateParams: Record<string, string> = {
+      to_email: normalizedEmail,
+      user_email: normalizedEmail,
+      email: normalizedEmail,
+      user_name: recipientName,
+      to_name: recipientName,
+      reason: message,
+      subject,
+      message,
+      account_role: accountRole
+    };
 
     try {
-      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_id: emailjs.serviceId,
-          template_id: emailjs.templateId,
-          user_id: emailjs.publicKey,
-          template_params: {
-            to_email: normalizedEmail,
-            user_email: normalizedEmail,
-            user_name: payload.recipientName.trim() || 'User',
-            reason: message,
-            subject,
-            message
-          }
-        })
+      this.ensureEmailJsInit(emailjsConfig.publicKey);
+
+      await emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, templateParams, {
+        publicKey: emailjsConfig.publicKey
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        return {
-          sent: false,
-          message: errorText.trim() || 'Email provider rejected the request.'
-        };
-      }
-
       return { sent: true, message: `Notification sent to ${normalizedEmail}.` };
-    } catch {
-      return { sent: false, message: 'Unable to reach the email service. Check your network connection.' };
+    } catch (error) {
+      return {
+        sent: false,
+        message: this.formatEmailJsError(error)
+      };
     }
+  }
+
+  private formatEmailJsError(error: unknown): string {
+    if (error && typeof error === 'object') {
+      const record = error as { text?: string; message?: string; status?: number };
+      const detail = record.text?.trim() || record.message?.trim();
+      if (detail) {
+        return detail;
+      }
+      if (record.status === 403) {
+        return 'EmailJS blocked this request. In the EmailJS dashboard, allow browser requests from http://localhost:4200 (and your production domain).';
+      }
+    }
+
+    return 'Unable to reach the email service. Check your network connection and EmailJS settings.';
   }
 }

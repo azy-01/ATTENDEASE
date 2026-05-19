@@ -307,12 +307,12 @@
       <div class="form-row-modal">
         <div class="form-group">
           <label>First Name</label>
-          <input type="text" [(ngModel)]="instructorForm.firstName" placeholder="Juan" [class.error]="formErrors['firstName']"/>
+          <input type="text" [(ngModel)]="instructorForm.firstName" placeholder="First name" [class.error]="formErrors['firstName']"/>
           <div class="field-error" *ngIf="formErrors['firstName']">{{ formErrors['firstName'] }}</div>
         </div>
         <div class="form-group">
           <label>Last Name</label>
-          <input type="text" [(ngModel)]="instructorForm.lastName" placeholder="Dela Cruz" [class.error]="formErrors['lastName']"/>
+          <input type="text" [(ngModel)]="instructorForm.lastName" placeholder="Last name" [class.error]="formErrors['lastName']"/>
           <div class="field-error" *ngIf="formErrors['lastName']">{{ formErrors['lastName'] }}</div>
         </div>
       </div>

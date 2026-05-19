@@ -1,17 +1,32 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AttendanceComponent } from './attendance';
+import { StudentApiService } from '../../../core/data/student-api.service';
+import { NotificationService } from '../../../core/data/notification.service';
 
-import { Attendance } from './attendance';
-
-describe('Attendance', () => {
-  let component: Attendance;
-  let fixture: ComponentFixture<Attendance>;
+describe('AttendanceComponent', () => {
+  let component: AttendanceComponent;
+  let fixture: ComponentFixture<AttendanceComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Attendance],
+      imports: [AttendanceComponent],
+      providers: [
+        {
+          provide: StudentApiService,
+          useValue: {
+            getInstructorSessionsForOwner: () => Promise.resolve([]),
+            getInstructorClasses: () => Promise.resolve([]),
+            getAuthAccountByEmail: () => Promise.resolve(null),
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: { add: () => undefined },
+        },
+      ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(Attendance);
+    fixture = TestBed.createComponent(AttendanceComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

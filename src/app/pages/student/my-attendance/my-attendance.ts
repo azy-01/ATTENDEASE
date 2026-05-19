@@ -234,6 +234,8 @@ export class MyAttendanceComponent implements OnDestroy {
           this.submitError = 'No active instructor session right now.';
         } else if (result.reason === 'INVALID_MANUAL_CODE') {
           this.submitError = 'Manual attendance code is incorrect for the active session.';
+        } else if (result.reason === 'ONLINE_QR_NOT_ALLOWED') {
+          this.submitError = 'QR check-in is only available for face-to-face classes. Use the manual code instead.';
         } else {
           this.submitError = 'Attendance already recorded for this active session.';
         }

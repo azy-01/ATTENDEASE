@@ -6,7 +6,8 @@ import {
   type AttendanceRecord,
   type AuthAccount,
   type InstructorClass,
-  type InstructorSession
+  type InstructorSession,
+  type InstructorStudent
 } from '../../../core/data/student-api.service';
 import { getTodayDateKey, isSameCalendarDate, toCalendarDateKey } from '../../../core/utils/date.utils';
 
@@ -139,9 +140,10 @@ export class OverviewComponent implements OnInit {
         return;
       }
 
-      const [classes, attendance] = await Promise.all([
+      const [classes, attendance, activeStudents] = await Promise.all([
         this.studentApi.getInstructorClasses(),
         this.studentApi.getAttendanceRecords(),
+        this.studentApi.getInstructorStudents(),
       ]);
 
       let scopedClasses = classes;
@@ -209,7 +211,7 @@ export class OverviewComponent implements OnInit {
           .slice(0, 5)
           .map((item) => `${item.subject} - ${item.section} (${item.date})`)
       );
-      this.applyTodayStats(relevantAttendance, scopedClasses);
+      this.applyTodayStats(relevantAttendance, scopedClasses, activeStudents);
     } catch {
       this.clearInstructorData();
     } finally {
@@ -247,19 +249,28 @@ export class OverviewComponent implements OnInit {
     return keys;
   }
 
-  private countUniqueStudents(classes: InstructorClass[]): number {
+  private countUniqueStudents(
+    classes: InstructorClass[],
+    activeStudents: InstructorStudent[]
+  ): number {
+    const activeStudentIds = new Set(activeStudents.map((student) => student.id));
     const studentIds = new Set<string>();
     for (const classItem of classes) {
       for (const studentId of classItem.assignedStudentIds ?? []) {
-        if (studentId.trim()) {
-          studentIds.add(studentId);
+        const trimmedId = studentId.trim();
+        if (trimmedId && activeStudentIds.has(trimmedId)) {
+          studentIds.add(trimmedId);
         }
       }
     }
     return studentIds.size;
   }
 
-  private applyTodayStats(records: AttendanceRecord[], classes: InstructorClass[]): void {
+  private applyTodayStats(
+    records: AttendanceRecord[],
+    classes: InstructorClass[],
+    activeStudents: InstructorStudent[]
+  ): void {
     const today = new Date();
     const todayKey = getTodayDateKey(today);
     const todaysRecords = records.filter(
@@ -277,7 +288,7 @@ export class OverviewComponent implements OnInit {
       { label: 'Late Today', value: lateToday, icon: 'schedule', color: '#f59e0b' },
       {
         label: 'Total Students',
-        value: this.countUniqueStudents(classes),
+        value: this.countUniqueStudents(classes, activeStudents),
         icon: 'group',
         color: '#6366f1'
       },

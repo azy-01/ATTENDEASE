@@ -283,6 +283,32 @@
     color: #dc2626;
 }
 
+.badge-f2f {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.badge-online {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.badge-mode-unknown {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.session-hint {
+    margin: -8px 0 16px;
+    font-size: 0.84rem;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.take-attendance-card {
+    padding-top: 8px;
+}
+
 // ── Empty state ────────────────────────────────────────────
 .empty-state {
     display: flex;

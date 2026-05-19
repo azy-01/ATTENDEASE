@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { getApps, initializeApp } from 'firebase/app';
 import { environment } from '../../../environments/environment';
+import { AccountEmailService, type AccountEmailResult } from './account-email.service';
 import { VerificationUploadService } from './verification-upload.service';
 import {
   getGmailValidationError,
@@ -101,6 +102,7 @@ export interface InstructorStudent {
   archiveReason?: string;
   archivedAt?: string;
   archivedBy?: string;
+  archivedFromClassIds?: string[];
 }
 
 export interface InstructorSchedule {
@@ -113,6 +115,10 @@ export interface InstructorSchedule {
   mode: 'Face-To-Face' | 'Online';
 }
 
+export type InstructorClassMode = 'Face-to-face Class' | 'Online Class';
+
+export const FACE_TO_FACE_CLASS_MODE: InstructorClassMode = 'Face-to-face Class';
+
 export interface InstructorSession {
   id: string;
   subject: string;
@@ -123,7 +129,18 @@ export interface InstructorSession {
   startedAt?: string;
   /** Auth account id (`authAccounts` document id) — scopes session to one instructor. */
   instructorAuthId?: string;
+  /** Resolved from the class when the session is created. */
+  classMode?: InstructorClassMode;
+  classId?: string;
 }
+
+export type InstructorAttendanceFailureReason =
+  | 'SESSION_NOT_ACTIVE'
+  | 'SESSION_NOT_OWNED'
+  | 'FACE_TO_FACE_ONLY'
+  | 'STUDENT_NOT_IN_CLASS'
+  | 'ALREADY_RECORDED'
+  | 'INVALID_STUDENT';
 
 export interface InstructorAccount {
   id: string;
@@ -173,7 +190,10 @@ export class StudentApiService {
     getApps()[0] ?? initializeApp(environment.firebase)
   );
 
-  constructor(private readonly verificationUpload: VerificationUploadService) {}
+  constructor(
+    private readonly verificationUpload: VerificationUploadService,
+    private readonly accountEmail: AccountEmailService
+  ) {}
   private readonly defaultStudentAccount: DefaultAccountSeed = {
     id: 'std-acc-1',
     fullName: 'Tiesha Kate D. Regular',
@@ -899,8 +919,9 @@ export class StudentApiService {
   async archiveStudentAccount(
     email: string,
     reason: string,
-    archivedBy: string
-  ): Promise<void> {
+    archivedBy: string,
+    recipientName = ''
+  ): Promise<AccountEmailResult> {
     const trimmedReason = reason.trim();
     if (!trimmedReason) {
       throw new Error('Archive reason is required.');
@@ -938,27 +959,25 @@ export class StudentApiService {
     ]);
 
     const archivedRosterIds = new Set<string>();
+    const classIdsByStudentId = new Map<string, string[]>();
+
     rosterSnapshot.docs.forEach((rosterDoc) => {
       archivedRosterIds.add(rosterDoc.id);
-      batch.set(
-        doc(this.db, 'instructorStudents', rosterDoc.id),
-        {
-          status: 'archived',
-          archiveReason: trimmedReason,
-          archivedAt,
-          archivedBy: archivedByValue
-        },
-        { merge: true }
-      );
     });
 
     if (archivedRosterIds.size) {
       classesSnapshot.docs.forEach((classDoc) => {
         const classData = classDoc.data() as Partial<InstructorClass>;
         const assignedStudentIds = classData.assignedStudentIds ?? [];
-        const nextAssignedStudentIds = assignedStudentIds.filter(
-          (studentId) => !archivedRosterIds.has(studentId)
-        );
+        const nextAssignedStudentIds = assignedStudentIds.filter((studentId) => {
+          if (!archivedRosterIds.has(studentId)) {
+            return true;
+          }
+          const existingClassIds = classIdsByStudentId.get(studentId) ?? [];
+          existingClassIds.push(classDoc.id);
+          classIdsByStudentId.set(studentId, existingClassIds);
+          return false;
+        });
         if (nextAssignedStudentIds.length !== assignedStudentIds.length) {
           batch.set(
             doc(this.db, 'instructorClasses', classDoc.id),
@@ -972,11 +991,41 @@ export class StudentApiService {
       });
     }
 
+    rosterSnapshot.docs.forEach((rosterDoc) => {
+      batch.set(
+        doc(this.db, 'instructorStudents', rosterDoc.id),
+        {
+          status: 'archived',
+          archiveReason: trimmedReason,
+          archivedAt,
+          archivedBy: archivedByValue,
+          archivedFromClassIds: classIdsByStudentId.get(rosterDoc.id) ?? []
+        },
+        { merge: true }
+      );
+    });
+
     if (!authAccount && !archivedRosterIds.size) {
       throw new Error('No student record found for this email.');
     }
 
     await batch.commit();
+
+    const rosterName = rosterSnapshot.docs[0]?.data() as Partial<InstructorStudent> | undefined;
+    const notifyName =
+      recipientName.trim() ||
+      authAccount?.fullName?.trim() ||
+      rosterName?.name?.trim() ||
+      'Student';
+
+    return this.accountEmail.sendArchiveNotification(
+      {
+        toEmail: normalizedEmail,
+        recipientName: notifyName,
+        reason: trimmedReason
+      },
+      'student'
+    );
   }
 
   async unarchiveStudentAccount(email: string): Promise<void> {
@@ -987,9 +1036,10 @@ export class StudentApiService {
 
     const batch = writeBatch(this.db);
     const authAccount = await this.findAuthAccountByEmail('student', normalizedEmail);
-    const rosterSnapshot = await getDocs(
-      query(collection(this.db, 'instructorStudents'), where('email', '==', normalizedEmail))
-    );
+    const [rosterSnapshot, classesSnapshot] = await Promise.all([
+      getDocs(query(collection(this.db, 'instructorStudents'), where('email', '==', normalizedEmail))),
+      getDocs(collection(this.db, 'instructorClasses'))
+    ]);
     const hasArchivedRoster = rosterSnapshot.docs.some(
       (rosterDoc) => (rosterDoc.data() as InstructorStudent).status === 'archived'
     );
@@ -1019,14 +1069,51 @@ export class StudentApiService {
       this.queueRoleCollectionSync(batch, restoredAccount);
     }
 
+    const classDocsById = new Map(classesSnapshot.docs.map((classDoc) => [classDoc.id, classDoc]));
+    const studentsToRestoreByClassId = new Map<string, Set<string>>();
+
     rosterSnapshot.docs.forEach((rosterDoc) => {
+      const rosterData = rosterDoc.data() as InstructorStudent;
+      (rosterData.archivedFromClassIds ?? []).forEach((classId) => {
+        const studentIds = studentsToRestoreByClassId.get(classId) ?? new Set<string>();
+        studentIds.add(rosterDoc.id);
+        studentsToRestoreByClassId.set(classId, studentIds);
+      });
+
       batch.set(
         doc(this.db, 'instructorStudents', rosterDoc.id),
         {
           status: 'active',
           archiveReason: deleteField(),
           archivedAt: deleteField(),
-          archivedBy: deleteField()
+          archivedBy: deleteField(),
+          archivedFromClassIds: deleteField()
+        },
+        { merge: true }
+      );
+    });
+
+    studentsToRestoreByClassId.forEach((studentIds, classId) => {
+      const classDoc = classDocsById.get(classId);
+      if (!classDoc) {
+        return;
+      }
+
+      const classData = classDoc.data() as Partial<InstructorClass>;
+      const assignedStudentIds = classData.assignedStudentIds ?? [];
+      const missingStudentIds = [...studentIds].filter(
+        (studentId) => !assignedStudentIds.includes(studentId)
+      );
+      if (!missingStudentIds.length) {
+        return;
+      }
+
+      const nextAssignedStudentIds = [...assignedStudentIds, ...missingStudentIds];
+      batch.set(
+        doc(this.db, 'instructorClasses', classId),
+        {
+          assignedStudentIds: nextAssignedStudentIds,
+          studentCount: nextAssignedStudentIds.length
         },
         { merge: true }
       );
@@ -1045,17 +1132,27 @@ export class StudentApiService {
     return setDoc(doc(this.db, 'instructorStudents', id), next).then(() => next);
   }
 
-  updateInstructorStudent(id: string, payload: InstructorStudent): Promise<InstructorStudent> {
+  async updateInstructorStudent(id: string, payload: InstructorStudent): Promise<InstructorStudent> {
     const gmailError = getGmailValidationError(payload.email);
     if (gmailError) {
-      return Promise.reject(new Error(gmailError));
+      throw new Error(gmailError);
+    }
+    const normalizedStudentId = (payload.studentId ?? '').trim();
+    if (!normalizedStudentId) {
+      throw new Error('Student ID is required.');
+    }
+    const existingByStudentId = await this.findInstructorStudentByStudentId(normalizedStudentId, id);
+    if (existingByStudentId) {
+      throw new Error('Student account already exists for this Student ID.');
     }
     const next = {
       ...payload,
       id,
+      studentId: normalizedStudentId,
       email: normalizeEmailAddress(payload.email),
     };
-    return setDoc(doc(this.db, 'instructorStudents', id), next, { merge: true }).then(() => next);
+    await setDoc(doc(this.db, 'instructorStudents', id), next, { merge: true });
+    return next;
   }
 
   deleteInstructorStudent(id: string): Promise<void> {
@@ -1243,13 +1340,185 @@ export class StudentApiService {
       });
   }
 
+  async getInstructorSessionById(sessionId: string): Promise<InstructorSession | null> {
+    const normalizedId = sessionId.trim();
+    if (!normalizedId) {
+      return null;
+    }
+
+    const snapshot = await getDoc(doc(this.db, 'instructorSessions', normalizedId));
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    const data = snapshot.data() as InstructorSession;
+    return { ...data, id: data.id ?? snapshot.id };
+  }
+
+  async getSessionRoster(sessionId: string): Promise<InstructorStudent[]> {
+    const session = await this.enrichSessionClassMetadata(
+      await this.getInstructorSessionById(sessionId)
+    );
+    if (!session || session.classMode !== FACE_TO_FACE_CLASS_MODE) {
+      return [];
+    }
+
+    const classItem = await this.resolveClassForSession(session);
+    if (!classItem) {
+      return [];
+    }
+
+    const students = await this.getInstructorStudents();
+    const assignedIds = new Set(classItem.assignedStudentIds ?? []);
+
+    if (assignedIds.size) {
+      return students
+        .filter((student) => assignedIds.has(student.id))
+        .sort((first, second) => first.name.localeCompare(second.name));
+    }
+
+    const sectionKey = (classItem.section?.trim() || classItem.name.trim()).toLowerCase();
+    return students
+      .filter((student) => {
+        const studentSection = (student.section ?? '').trim().toLowerCase();
+        return studentSection === sectionKey || studentSection === classItem.name.trim().toLowerCase();
+      })
+      .sort((first, second) => first.name.localeCompare(second.name));
+  }
+
+  async getAttendanceRecordsForSession(sessionId: string): Promise<AttendanceRecord[]> {
+    const normalizedId = sessionId.trim();
+    if (!normalizedId) {
+      return [];
+    }
+
+    const prefix = `attendance-${normalizedId}-`;
+    const records = await this.getAttendanceRecords();
+    return records
+      .filter((record) => (record.id ?? '').startsWith(prefix))
+      .sort((first, second) => (second.timeIn ?? '').localeCompare(first.timeIn ?? ''));
+  }
+
+  async submitInstructorAttendance(payload: {
+    sessionId: string;
+    instructorAuthId: string;
+    studentEmail: string;
+    studentName: string;
+    status: 'Present' | 'Late';
+    method: 'qr' | 'manual';
+  }): Promise<
+    | { success: true; record: AttendanceRecord }
+    | { success: false; reason: InstructorAttendanceFailureReason }
+  > {
+    const sessionId = payload.sessionId.trim();
+    const instructorAuthId = payload.instructorAuthId.trim();
+    const normalizedStudentEmail = payload.studentEmail.trim().toLowerCase();
+    const normalizedStudentName = payload.studentName.trim();
+
+    if (!sessionId || !instructorAuthId || !normalizedStudentEmail || !normalizedStudentName) {
+      return { success: false, reason: 'INVALID_STUDENT' };
+    }
+
+    const session = await this.enrichSessionClassMetadata(
+      await this.getInstructorSessionById(sessionId)
+    );
+    if (!session) {
+      return { success: false, reason: 'SESSION_NOT_ACTIVE' };
+    }
+
+    if (session.status !== 'active') {
+      return { success: false, reason: 'SESSION_NOT_ACTIVE' };
+    }
+
+    if ((session.instructorAuthId ?? '').trim() !== instructorAuthId) {
+      return { success: false, reason: 'SESSION_NOT_OWNED' };
+    }
+
+    if (session.classMode !== FACE_TO_FACE_CLASS_MODE) {
+      return { success: false, reason: 'FACE_TO_FACE_ONLY' };
+    }
+
+    const roster = await this.getSessionRoster(sessionId);
+    const rosterStudent = roster.find(
+      (student) => student.email.trim().toLowerCase() === normalizedStudentEmail
+    );
+    if (!rosterStudent) {
+      return { success: false, reason: 'STUDENT_NOT_IN_CLASS' };
+    }
+
+    const now = new Date();
+    const timeIn = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const attendanceRecordId = this.buildAttendanceRecordId(sessionId, normalizedStudentEmail);
+    const nextRecord: AttendanceRecord = {
+      id: attendanceRecordId,
+      studentEmail: normalizedStudentEmail,
+      studentName: rosterStudent.name.trim() || normalizedStudentName,
+      subject: session.subject,
+      section: session.section,
+      date: session.date,
+      timeIn,
+      status: payload.status,
+      method: payload.method,
+    };
+
+    const sessionRef = doc(this.db, 'instructorSessions', sessionId);
+    const recordRef = doc(this.db, 'attendanceRecords', attendanceRecordId);
+
+    try {
+      await runTransaction(this.db, async (transaction) => {
+        const sessionSnapshot = await transaction.get(sessionRef);
+        if (!sessionSnapshot.exists()) {
+          throw new Error('SESSION_NOT_ACTIVE');
+        }
+
+        const persistedSession = sessionSnapshot.data() as InstructorSession;
+        if (persistedSession.status !== 'active') {
+          throw new Error('SESSION_NOT_ACTIVE');
+        }
+
+        if ((persistedSession.instructorAuthId ?? '').trim() !== instructorAuthId) {
+          throw new Error('SESSION_NOT_OWNED');
+        }
+
+        if (persistedSession.classMode !== FACE_TO_FACE_CLASS_MODE) {
+          throw new Error('FACE_TO_FACE_ONLY');
+        }
+
+        const existingRecordSnapshot = await transaction.get(recordRef);
+        if (existingRecordSnapshot.exists()) {
+          throw new Error('ALREADY_RECORDED');
+        }
+
+        transaction.set(recordRef, nextRecord);
+      });
+      return { success: true, record: nextRecord };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : '';
+      if (
+        reason === 'ALREADY_RECORDED' ||
+        reason === 'SESSION_NOT_ACTIVE' ||
+        reason === 'SESSION_NOT_OWNED' ||
+        reason === 'FACE_TO_FACE_ONLY'
+      ) {
+        return { success: false, reason: reason as InstructorAttendanceFailureReason };
+      }
+      return { success: false, reason: 'SESSION_NOT_ACTIVE' };
+    }
+  }
+
   async submitStudentAttendance(payload: {
     studentEmail: string;
     studentName: string;
     studentQrCodeValue: string;
     method: 'qr' | 'manual';
     manualCode?: string;
-  }): Promise<{ success: true; record: AttendanceRecord; session: InstructorSession } | { success: false; reason: 'NO_ACTIVE_SESSION' | 'ALREADY_RECORDED' | 'INVALID_MANUAL_CODE' }> {
+  }): Promise<
+    | { success: true; record: AttendanceRecord; session: InstructorSession }
+    | {
+        success: false;
+        reason: 'NO_ACTIVE_SESSION' | 'ALREADY_RECORDED' | 'INVALID_MANUAL_CODE' | 'ONLINE_QR_NOT_ALLOWED';
+      }
+  > {
     const normalizedStudentEmail = payload.studentEmail.trim().toLowerCase();
     const normalizedQrCodeValue = payload.studentQrCodeValue.trim();
     if (!normalizedStudentEmail || !normalizedQrCodeValue) {
@@ -1257,7 +1526,7 @@ export class StudentApiService {
     }
 
     const activeSessions = await this.getActiveInstructorSessions();
-    const latestActiveSession = activeSessions[0];
+    const latestActiveSession = await this.enrichSessionClassMetadata(activeSessions[0] ?? null);
     if (!latestActiveSession) {
       return { success: false, reason: 'NO_ACTIVE_SESSION' };
     }
@@ -1268,6 +1537,10 @@ export class StudentApiService {
       if (!submittedManualCode || !sessionManualCode || submittedManualCode !== sessionManualCode) {
         return { success: false, reason: 'INVALID_MANUAL_CODE' };
       }
+    }
+
+    if (payload.method === 'qr' && latestActiveSession.classMode === 'Online Class') {
+      return { success: false, reason: 'ONLINE_QR_NOT_ALLOWED' };
     }
 
     const now = new Date();
@@ -1381,10 +1654,23 @@ export class StudentApiService {
     return 'Present';
   }
 
-  getInstructorAccount(): Promise<InstructorAccount | null> {
-    return this.listCollection<InstructorAccount>('instructorAccounts').then(
-      (accounts) => accounts[0] ?? null
-    );
+  getInstructorAccountByEmail(email: string): Promise<InstructorAccount | null> {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return Promise.resolve(null);
+    }
+
+    return getDocs(
+      query(collection(this.db, 'instructorAccounts'), where('email', '==', normalizedEmail))
+    ).then((snapshot) => {
+      const firstDoc = snapshot.docs[0];
+      if (!firstDoc) {
+        return null;
+      }
+
+      const data = firstDoc.data() as InstructorAccount;
+      return { ...data, id: data.id ?? firstDoc.id };
+    });
   }
 
   updateInstructorAccount(id: string, payload: InstructorAccount): Promise<InstructorAccount> {
@@ -1461,14 +1747,19 @@ export class StudentApiService {
     ) ?? null;
   }
 
-  private async findInstructorStudentByStudentId(studentId: string): Promise<InstructorStudent | null> {
+  private async findInstructorStudentByStudentId(
+    studentId: string,
+    excludeRecordId?: string
+  ): Promise<InstructorStudent | null> {
     const normalizedStudentId = studentId.trim().toLowerCase();
     if (!normalizedStudentId) {
       return null;
     }
     const students = await this.getInstructorStudents();
     return students.find(
-      (student) => (student.studentId ?? '').trim().toLowerCase() === normalizedStudentId
+      (student) =>
+        (student.studentId ?? '').trim().toLowerCase() === normalizedStudentId &&
+        student.id !== excludeRecordId
     ) ?? null;
   }
 
@@ -1586,6 +1877,71 @@ export class StudentApiService {
   private buildAttendanceRecordId(sessionId: string, studentEmail: string): string {
     const normalizedEmail = studentEmail.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
     return `attendance-${sessionId}-${normalizedEmail}`;
+  }
+
+  async enrichSessionClassMetadata(
+    session: InstructorSession | null
+  ): Promise<InstructorSession | null> {
+    if (!session) {
+      return null;
+    }
+
+    if (session.classMode && session.classId) {
+      return session;
+    }
+
+    const classItem = await this.resolveClassForSession(session);
+    if (!classItem) {
+      return session;
+    }
+
+    return {
+      ...session,
+      classId: session.classId ?? classItem.id,
+      classMode: session.classMode ?? classItem.classMode,
+    };
+  }
+
+  async resolveClassForSession(session: InstructorSession): Promise<InstructorClass | null> {
+    const classes = await this.getInstructorClasses();
+    if (session.classId) {
+      const byId = classes.find((classItem) => classItem.id === session.classId);
+      if (byId) {
+        return byId;
+      }
+    }
+    return this.findClassMatchingSession(session, classes);
+  }
+
+  findClassMatchingSession(
+    session: Pick<InstructorSession, 'section' | 'subject'>,
+    classes: InstructorClass[]
+  ): InstructorClass | null {
+    const section = session.section.trim();
+    const subject = session.subject.trim();
+    if (!section || !subject) {
+      return null;
+    }
+
+    const sectionAndSubjectMatch = classes.find((classItem) => {
+      const classSection = classItem.section?.trim() || classItem.name.trim();
+      const sectionMatches = classItem.name.trim() === section || classSection === section;
+      if (!sectionMatches) {
+        return false;
+      }
+      const subjects = this.getClassSubjects(classItem);
+      return subjects.includes(subject);
+    });
+    if (sectionAndSubjectMatch) {
+      return sectionAndSubjectMatch;
+    }
+
+    return (
+      classes.find((classItem) => {
+        const classSection = classItem.section?.trim() || classItem.name.trim();
+        return classItem.name.trim() === section || classSection === section;
+      }) ?? null
+    );
   }
 
   private async hasLinkedRoleProfile(account: AuthAccount): Promise<boolean> {

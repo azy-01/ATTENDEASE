@@ -18,7 +18,7 @@ export class InstructorHeaderComponent {
   private readonly notificationRole = this.resolveNotificationRole();
 
   @Input() pageTitle: string = 'Overview';
-  @Input() userName: string = 'Azryth Sacuan';
+  @Input() userName: string = '';
   @Input() sidebarOpen: boolean = false;
 
   @Output() menuToggle = new EventEmitter<void>();
@@ -29,7 +29,8 @@ export class InstructorHeaderComponent {
   readonly unreadCount = this.notificationService.unreadCountForRole(this.notificationRole);
 
   get userInitial(): string {
-    return this.userName ? this.userName.charAt(0).toUpperCase() : 'A';
+    const name = this.userName?.trim();
+    return name ? name.charAt(0).toUpperCase() : '?';
   }
 
   toggleSidebar(): void {

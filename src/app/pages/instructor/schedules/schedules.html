@@ -1,0 +1,109 @@
+<div class="schedules-page">
+  <div class="stats-row" aria-label="Schedule summary">
+    <article class="stat-card">
+      <div class="stat-icon-wrap">
+        <span class="material-icons" aria-hidden="true">event</span>
+      </div>
+      <div class="stat-content">
+        <p class="stat-label">Total classes</p>
+        <p class="stat-value">{{ totalClasses }}</p>
+      </div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon-wrap stat-icon-wrap--days">
+        <span class="material-icons" aria-hidden="true">calendar_view_week</span>
+      </div>
+      <div class="stat-content">
+        <p class="stat-label">Days scheduled</p>
+        <p class="stat-value">{{ groupedDays.length }}</p>
+      </div>
+    </article>
+    <article class="stat-card">
+      <div class="stat-icon-wrap stat-icon-wrap--sections">
+        <span class="material-icons" aria-hidden="true">groups</span>
+      </div>
+      <div class="stat-content">
+        <p class="stat-label">Sections</p>
+        <p class="stat-value">{{ uniqueSections }}</p>
+      </div>
+    </article>
+  </div>
+
+  <section class="schedule-card" aria-label="Weekly schedule">
+    <header class="card-header">
+      <div class="card-heading">
+        <h2>Weekly schedule</h2>
+        <p class="manage-note">Schedules are managed from assigned classes and are view-only.</p>
+      </div>
+    </header>
+
+    <div class="schedule-body" *ngIf="groupedDays.length; else emptySchedule">
+      <section
+        class="day-block"
+        *ngFor="let day of groupedDays; trackBy: trackByDay"
+        [attr.aria-label]="day.day + ' classes'"
+      >
+        <header class="day-header">
+          <div class="day-title">
+            <span class="day-badge">{{ formatDayLabel(day.day) }}</span>
+            <span class="day-count">{{ day.items.length }} {{ day.items.length === 1 ? 'class' : 'classes' }}</span>
+          </div>
+        </header>
+
+        <div class="class-list">
+          <article
+            class="class-card"
+            *ngFor="let item of day.items; trackBy: trackByItem"
+          >
+            <div class="time-block" aria-label="Class time">
+              <span class="time-start">{{ getTimeStart(item.time) }}</span>
+              <ng-container *ngIf="getTimeEnd(item.time) as endTime">
+                <span class="time-separator" aria-hidden="true"></span>
+                <span class="time-end">{{ endTime }}</span>
+              </ng-container>
+            </div>
+
+            <div class="class-content">
+              <h3 class="subject-title">{{ item.subject }}</h3>
+
+              <div class="meta-chips">
+                <span class="meta-chip meta-chip--section" *ngIf="item.section">
+                  <span class="material-icons" aria-hidden="true">class</span>
+                  {{ item.section }}
+                </span>
+                <span class="meta-chip" *ngIf="item.program">
+                  <span class="material-icons" aria-hidden="true">school</span>
+                  {{ item.program }}
+                </span>
+                <span class="meta-chip" *ngIf="item.yearLevel">
+                  <span class="material-icons" aria-hidden="true">stairs</span>
+                  {{ item.yearLevel }}
+                </span>
+                <span class="meta-chip" *ngIf="item.room">
+                  <span class="material-icons" aria-hidden="true">meeting_room</span>
+                  {{ item.room }}
+                </span>
+                <span
+                  class="meta-chip meta-chip--mode"
+                  [class.meta-chip--online]="isOnlineMode(item.classMode)"
+                  *ngIf="item.classMode"
+                >
+                  <span class="material-icons" aria-hidden="true">{{ getModeIcon(item.classMode) }}</span>
+                  {{ item.classMode }}
+                </span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <ng-template #emptySchedule>
+      <div class="empty-state">
+        <span class="material-icons empty-icon" aria-hidden="true">event_busy</span>
+        <p class="empty-title">No schedules yet</p>
+        <p class="empty-text">Assigned classes will appear here once they have a day and time set.</p>
+      </div>
+    </ng-template>
+  </section>
+</div>

@@ -1,0 +1,257 @@
+<div class="take-attendance-panel" *ngIf="faceToFaceSessions().length; else noF2fSession">
+
+  <div class="session-strip">
+    <div class="session-strip-field">
+      <label for="takeAttendanceSession">Active session</label>
+      <select
+        id="takeAttendanceSession"
+        class="control-input session-select"
+        [ngModel]="selectedSessionId()"
+        (ngModelChange)="onSessionChange($event)"
+      >
+        <option *ngFor="let session of faceToFaceSessions()" [value]="session.id">
+          {{ session.subject }} — {{ session.section }} · {{ session.date }}
+        </option>
+      </select>
+    </div>
+    <div class="session-chips" aria-label="Session info">
+      <span class="chip chip-f2f">Face-to-face</span>
+      <span class="chip chip-muted" *ngIf="!isLoadingRoster()">{{ rosterCount() }} in roster</span>
+      <span class="chip chip-muted" *ngIf="sessionRecords().length">{{ sessionRecords().length }} marked</span>
+    </div>
+  </div>
+
+  <div class="segmented-tabs" role="tablist" aria-label="Attendance marking method">
+    <button
+      type="button"
+      role="tab"
+      class="segmented-tab"
+      [class.active]="activeTab() === 'manual'"
+      [attr.aria-selected]="activeTab() === 'manual'"
+      (click)="onTabChange('manual')"
+    >
+      <span class="material-icons" aria-hidden="true">edit</span>
+      Manual entry
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="segmented-tab"
+      [class.active]="activeTab() === 'qr'"
+      [attr.aria-selected]="activeTab() === 'qr'"
+      (click)="onTabChange('qr')"
+    >
+      <span class="material-icons" aria-hidden="true">qr_code_scanner</span>
+      Scan QR
+    </button>
+  </div>
+
+  <p class="load-hint" *ngIf="isLoadingRoster()">
+    <span class="load-dot" aria-hidden="true"></span>
+    Loading class roster…
+  </p>
+
+  <div class="panel-surface" *ngIf="!isLoadingRoster()">
+
+    <!-- Manual entry -->
+    <div class="tab-panel manual-panel" *ngIf="activeTab() === 'manual'" role="tabpanel">
+      <p class="panel-lead">Search a student from this class, set their status, then confirm.</p>
+
+      <div class="autocomplete-wrap">
+        <label for="studentSearch">Student name or ID</label>
+        <div class="search-input-wrap">
+          <span class="material-icons search-icon" aria-hidden="true">search</span>
+          <input
+            id="studentSearch"
+            type="text"
+            class="control-input search-input"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="onSearchQueryChange($event)"
+            (focus)="onSearchFocus()"
+            (blur)="onSearchBlur()"
+            (keydown)="onSearchKeydown($event)"
+            placeholder="Start typing a name…"
+            [disabled]="isMarking()"
+            autocomplete="off"
+            role="combobox"
+            [attr.aria-expanded]="suggestionsOpen && filteredSuggestions().length > 0"
+            aria-controls="studentSuggestions"
+            aria-autocomplete="list"
+          />
+        </div>
+        <ul
+          id="studentSuggestions"
+          class="suggestions-list"
+          role="listbox"
+          *ngIf="suggestionsOpen && roster().length && filteredSuggestions().length"
+        >
+          <li
+            *ngFor="let item of filteredSuggestions(); let i = index; trackBy: trackByStudentId"
+            role="option"
+            [class.highlighted]="i === suggestionHighlightIndex"
+            [class.marked]="item.alreadyMarked"
+            [attr.aria-selected]="i === suggestionHighlightIndex"
+            (mousedown)="selectSuggestion(item.student)"
+          >
+            <span class="suggestion-avatar" aria-hidden="true">{{ item.student.name.charAt(0) }}</span>
+            <span class="suggestion-text">
+              <span class="suggestion-name">{{ item.student.name }}</span>
+              <span class="suggestion-meta">{{ item.student.studentId }}</span>
+            </span>
+            <span class="suggestion-badge" *ngIf="item.alreadyMarked">Marked</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="notice notice-warning" *ngIf="!roster().length">
+        <span class="material-icons" aria-hidden="true">info</span>
+        <p>No students in this class roster. Assign students on the <strong>Classes</strong> page first.</p>
+      </div>
+
+      <div
+        class="notice notice-info"
+        *ngIf="suggestionsOpen && roster().length && searchQuery().trim() && !filteredSuggestions().length"
+      >
+        <span class="material-icons" aria-hidden="true">person_off</span>
+        <p>No match for “{{ searchQuery() }}”. Check spelling or pick from suggestions.</p>
+      </div>
+
+      <div class="manual-actions">
+        <div class="status-field">
+          <label for="manualStatus">Status</label>
+          <select id="manualStatus" class="control-input" [(ngModel)]="markStatus" [disabled]="isMarking()">
+            <option value="Present">Present</option>
+            <option value="Late">Late</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          class="btn-primary mark-btn"
+          (click)="confirmManualAttendance()"
+          [disabled]="isMarking() || !searchQuery().trim() || !roster().length"
+        >
+          <span class="material-icons" aria-hidden="true">how_to_reg</span>
+          {{ isMarking() ? 'Marking…' : 'Mark attendance' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- QR scan -->
+    <div class="tab-panel qr-panel" *ngIf="activeTab() === 'qr'" role="tabpanel">
+      <p class="panel-lead">Scan each student's personal QR code. Status is applied automatically after a successful scan.</p>
+
+      <div class="qr-toolbar">
+        <div class="status-field">
+          <label for="qrStatus">Status after scan</label>
+          <select id="qrStatus" class="control-input" [(ngModel)]="qrMarkStatus" [disabled]="isMarking()">
+            <option value="Present">Present</option>
+            <option value="Late">Late</option>
+          </select>
+        </div>
+        <div class="scanner-actions">
+          <button
+            type="button"
+            class="btn-primary"
+            (click)="startQrScanner()"
+            [disabled]="isMarking() || !scannerSupported || isScannerOpen || isScannerStarting"
+          >
+            <span class="material-icons" aria-hidden="true">photo_camera</span>
+            {{ isScannerStarting ? 'Starting…' : 'Open camera' }}
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            (click)="stopQrScanner()"
+            [disabled]="!isScannerOpen"
+          >
+            Stop
+          </button>
+        </div>
+      </div>
+
+      <div class="notice notice-muted" *ngIf="!scannerSupported">
+        <span class="material-icons" aria-hidden="true">videocam_off</span>
+        <p>Camera scanning is not supported in this browser.</p>
+      </div>
+
+      <div class="notice notice-active" *ngIf="isScannerStarting || isScannerOpen">
+        <span class="material-icons" aria-hidden="true">{{ isScannerOpen ? 'videocam' : 'hourglass_top' }}</span>
+        <p *ngIf="isScannerStarting">Starting camera — allow permission when prompted.</p>
+        <p *ngIf="isScannerOpen">Camera active. Align the student's QR code in the frame.</p>
+      </div>
+
+      <p class="inline-feedback error" *ngIf="scannerError">{{ scannerError }}</p>
+      <p class="inline-feedback success" *ngIf="scannerStatus">{{ scannerStatus }}</p>
+    </div>
+  </div>
+
+  <div class="feedback-row" *ngIf="markError() || markMessage()" aria-live="polite">
+    <p class="inline-feedback error" *ngIf="markError()">{{ markError() }}</p>
+    <p class="inline-feedback success" *ngIf="markMessage()">{{ markMessage() }}</p>
+  </div>
+
+  <div class="marked-log" *ngIf="sessionRecords().length">
+    <div class="marked-log-header">
+      <h3 class="marked-log-title">Marked this session</h3>
+      <span class="chip chip-muted">{{ sessionRecords().length }} total</span>
+    </div>
+    <ul class="marked-list">
+      <li *ngFor="let record of sessionRecords(); trackBy: trackByRecordId">
+        <span class="marked-avatar" aria-hidden="true">{{ (record.studentName || '?').charAt(0) }}</span>
+        <span class="marked-body">
+          <span class="marked-name">{{ record.studentName }}</span>
+          <span class="marked-meta">{{ record.timeIn }} · {{ record.method === 'qr' ? 'QR' : 'Manual' }}</span>
+        </span>
+        <span class="status-pill" [class.late]="record.status === 'Late'">{{ record.status }}</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<ng-template #noF2fSession>
+  <div class="notice notice-muted f2f-empty">
+    <span class="material-icons" aria-hidden="true">school</span>
+    <p>
+      Start an active <strong>face-to-face</strong> session to mark attendance here.
+      Online sessions use student manual codes only.
+    </p>
+  </div>
+</ng-template>
+
+<div
+  class="scanner-modal-backdrop"
+  *ngIf="activeTab() === 'qr' && (isScannerOpen || isScannerStarting)"
+  (click)="stopQrScanner()"
+>
+  <div class="scanner-modal" (click)="$event.stopPropagation()">
+    <div class="scanner-modal-header">
+      <h4>Scan student QR</h4>
+      <button type="button" class="icon-close-btn" (click)="stopQrScanner()" aria-label="Close scanner">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <p class="scanner-modal-help" *ngIf="isScannerStarting">Allow camera permission when your browser asks.</p>
+    <p class="scanner-modal-help" *ngIf="isScannerOpen">Place the student's QR code inside the frame.</p>
+
+    <div class="camera-picker" *ngIf="availableCameras.length">
+      <label for="instructorCameraSelect">Camera</label>
+      <select
+        id="instructorCameraSelect"
+        class="control-input"
+        [(ngModel)]="selectedCameraId"
+        (ngModelChange)="onCameraSelectionChange()"
+      >
+        <option *ngFor="let camera of availableCameras" [value]="camera.deviceId">{{ camera.label }}</option>
+      </select>
+    </div>
+
+    <div class="scanner-loading" *ngIf="isScannerStarting">
+      <span class="load-dot" aria-hidden="true"></span>
+      Waiting for camera…
+    </div>
+
+    <div class="scanner-preview" *ngIf="isScannerOpen">
+      <video #scannerVideo autoplay playsinline muted></video>
+    </div>
+  </div>
+</div>

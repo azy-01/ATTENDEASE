@@ -20,7 +20,7 @@ export class InstructorLayoutComponent {
   private readonly authSessionStorageKey = 'attendease-auth-session';
   sidebarOpen: boolean = false;
   pageTitle: string = 'Overview';
-  userName: string = 'Azryth Sacuan';
+  userName: string = '';
 
   constructor(private router: Router) {
     this.loadSignedInName();

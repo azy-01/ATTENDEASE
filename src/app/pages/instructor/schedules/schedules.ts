@@ -2,67 +2,28 @@ import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { StudentApiService, type InstructorScheduleViewItem } from '../../../core/data/student-api.service';
 
+const DAY_ORDER = [
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
+  'UNSCHEDULED',
+] as const;
+
+interface ScheduleDayGroup {
+  day: string;
+  items: InstructorScheduleViewItem[];
+}
+
 @Component({
   selector: 'app-schedules',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    <div class="page">
-      <p class="manage-note">Schedules are managed from assigned classes and are view-only.</p>
-      <section class="group" *ngFor="let day of groupedDays">
-        <h3>{{ day.day }}</h3>
-        <div class="row" *ngFor="let item of day.items">
-          <div class="row-main">
-            <strong>{{ item.subject }}</strong>
-            <span class="pill">{{ item.time }}</span>
-          </div>
-          <div class="details">
-            <span><strong>Program:</strong> {{ item.program || 'N/A' }}</span>
-            <span><strong>Year:</strong> {{ item.yearLevel || 'N/A' }}</span>
-            <span><strong>Section:</strong> {{ item.section || 'N/A' }}</span>
-            <span><strong>Day:</strong> {{ item.day || 'N/A' }}</span>
-            <span><strong>Room:</strong> {{ item.room || 'N/A' }}</span>
-            <span><strong>Class Mode:</strong> {{ item.classMode || 'N/A' }}</span>
-          </div>
-        </div>
-      </section>
-    </div>
-  `,
-  styles: [`
-    .page { display: flex; flex-direction: column; gap: 14px; }
-    .manage-note { margin: 0; font-size: 12px; color: #6b7280; }
-    .group { background: #fff; border: 1px solid #edf0f5; border-radius: 12px; padding: 14px; }
-    h3 { margin: 0 0 10px; font-size: 14px; color: #4b5563; letter-spacing: 0.6px; }
-    .row { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: #f9fafb; margin-bottom: 8px; }
-    .row-main { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .row-main strong { font-size: 14px; color: #111827; }
-    .pill { font-size: 12px; color: #374151; background: #e5e7eb; border-radius: 999px; padding: 3px 8px; }
-    .details { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)); gap: 6px 12px; }
-    .details span { font-size: 12px; color: #4b5563; }
-    .details strong { font-size: 12px; color: #111827; }
-    :host-context(body.dark-mode) .group,
-    .dark-mode .group {
-      background: #111827;
-      border-color: #1f2937;
-    }
-    :host-context(body.dark-mode) h3,
-    .dark-mode h3 { color: #94a3b8; }
-    :host-context(body.dark-mode) .row,
-    .dark-mode .row { background: #0f172a; }
-    :host-context(body.dark-mode) .manage-note,
-    :host-context(body.dark-mode) .details span,
-    .dark-mode .manage-note,
-    .dark-mode .details span { color: #94a3b8; }
-    :host-context(body.dark-mode) .details strong,
-    :host-context(body.dark-mode) .row-main strong,
-    .dark-mode .details strong,
-    .dark-mode .row-main strong { color: #e5e7eb; }
-    :host-context(body.dark-mode) .pill,
-    .dark-mode .pill {
-      color: #cbd5e1;
-      background: #1f2937;
-    }
-  `],
+  templateUrl: './schedules.html',
+  styleUrls: ['./schedules.scss'],
 })
 export class SchedulesComponent {
   private readonly authSessionStorageKey = 'attendease-auth-session';
@@ -75,17 +36,95 @@ export class SchedulesComponent {
     void this.loadSchedules();
   }
 
-  get groupedDays(): { day: string; items: InstructorScheduleViewItem[] }[] {
+  get groupedDays(): ScheduleDayGroup[] {
     const grouped: Record<string, InstructorScheduleViewItem[]> = {};
     this.schedules().forEach((item) => {
-      const day = item.day?.trim() || 'UNSCHEDULED';
+      const day = item.day?.trim().toUpperCase() || 'UNSCHEDULED';
       grouped[day] ??= [];
       grouped[day].push(item);
     });
-    return Object.keys(grouped).map((day) => ({
-      day,
-      items: grouped[day]
-    }));
+
+    return Object.keys(grouped)
+      .sort((a, b) => this.getDaySortIndex(a) - this.getDaySortIndex(b))
+      .map((day) => ({
+        day,
+        items: [...grouped[day]].sort(
+          (a, b) => this.parseStartMinutes(a.time) - this.parseStartMinutes(b.time)
+        ),
+      }));
+  }
+
+  get totalClasses(): number {
+    return this.schedules().length;
+  }
+
+  get uniqueSections(): number {
+    const sections = new Set(
+      this.schedules()
+        .map((item) => item.section?.trim())
+        .filter((section): section is string => Boolean(section))
+    );
+    return sections.size;
+  }
+
+  trackByDay(_index: number, group: ScheduleDayGroup): string {
+    return group.day;
+  }
+
+  trackByItem(_index: number, item: InstructorScheduleViewItem): string {
+    return `${item.day}-${item.subject}-${item.time}-${item.section}`;
+  }
+
+  formatDayLabel(day: string): string {
+    const normalized = day.trim();
+    if (!normalized || normalized === 'UNSCHEDULED') return 'Unscheduled';
+    return normalized.charAt(0) + normalized.slice(1).toLowerCase();
+  }
+
+  getTimeStart(time: string): string {
+    const parts = this.splitTimeRange(time);
+    return parts.start || time || '—';
+  }
+
+  getTimeEnd(time: string): string {
+    const parts = this.splitTimeRange(time);
+    return parts.end || '';
+  }
+
+  isOnlineMode(classMode: string): boolean {
+    return /online|virtual|remote|async/i.test(classMode);
+  }
+
+  getModeIcon(classMode: string): string {
+    return this.isOnlineMode(classMode) ? 'laptop' : 'groups';
+  }
+
+  private splitTimeRange(time: string): { start: string; end: string } {
+    const trimmed = time?.trim() ?? '';
+    if (!trimmed) return { start: '—', end: '' };
+    const parts = trimmed.split(/\s*[-–—]\s*/);
+    if (parts.length < 2) return { start: trimmed, end: '' };
+    return { start: parts[0].trim(), end: parts.slice(1).join(' - ').trim() };
+  }
+
+  private getDaySortIndex(day: string): number {
+    const index = DAY_ORDER.indexOf(day.toUpperCase() as (typeof DAY_ORDER)[number]);
+    return index === -1 ? DAY_ORDER.length : index;
+  }
+
+  private parseStartMinutes(time: string): number {
+    const start = this.splitTimeRange(time).start;
+    const match = start.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return Number.MAX_SAFE_INTEGER;
+
+    let hours = Number.parseInt(match[1], 10);
+    const minutes = Number.parseInt(match[2], 10);
+    const period = match[3].toUpperCase();
+
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    return hours * 60 + minutes;
   }
 
   private async loadSchedules(): Promise<void> {
@@ -105,7 +144,7 @@ export class SchedulesComponent {
               time: classItem.time ?? '',
               day: classItem.day ?? '',
               room: classItem.room?.trim() || 'N/A',
-              classMode: classItem.classMode ?? 'N/A'
+              classMode: classItem.classMode ?? 'N/A',
             }));
           })
         );
@@ -122,7 +161,10 @@ export class SchedulesComponent {
     const rawSession = localStorage.getItem(this.authSessionStorageKey);
     if (!rawSession) return;
     try {
-      const parsed = JSON.parse(rawSession) as { role?: 'instructor' | 'admin' | 'superadmin' | 'student'; email?: string };
+      const parsed = JSON.parse(rawSession) as {
+        role?: 'instructor' | 'admin' | 'superadmin' | 'student';
+        email?: string;
+      };
       this.role = parsed.role ?? '';
       this.sessionEmail = (parsed.email ?? '').trim().toLowerCase();
     } catch {

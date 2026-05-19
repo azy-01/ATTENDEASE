@@ -260,7 +260,7 @@ export class ArchivedInstructorAccountsComponent {
         title: 'Student restored',
         html: `
           <p class="archive-result-lead"><strong>${this.escapeHtml(student.name)}</strong> is active again.</p>
-          <p class="archive-result-email">Re-assign them to classes from the Classes page if needed.</p>
+          <p class="archive-result-email">They should appear on the Students page again. Re-assign classes manually only if enrollments were not restored.</p>
         `,
         icon: 'success',
         confirmButtonText: 'Done',

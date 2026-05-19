@@ -1,7 +1,7 @@
 .instructor-layout {
     display: flex;
     height: 100vh;
-    background: #f4f5f9;
+    background: #f1f5f9;
     overflow: hidden;
 }
 
@@ -15,7 +15,7 @@
 
 .instructor-content {
     flex: 1;
-    padding: 24px;
+    padding: 28px 32px 32px;
     overflow-y: auto;
     min-height: 0;
 }
