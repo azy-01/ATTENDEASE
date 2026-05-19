@@ -69,41 +69,164 @@
     />
   </div>
 
-  <div class="card">
-    <h2 class="card-title-plain">Recent Sessions</h2>
-
-    <div class="empty-state" *ngIf="recentSessions().length === 0">
-      <span class="material-icons">event_busy</span>
-      <p>No recent sessions yet.</p>
+  <div class="card sessions-card">
+    <div class="sessions-card-header">
+      <h2 class="card-title-plain">Sessions</h2>
+      <p class="sessions-card-subtitle">Active sessions and your session history. Removing hides from this list only.</p>
     </div>
 
-    <div class="session-list" *ngIf="recentSessions().length > 0">
-      <div class="session-item" *ngFor="let session of recentSessions()">
-        <div class="session-info">
-          <p class="session-subject">{{ session.subject }}</p>
-          <p class="session-meta">{{ session.section }} • {{ session.date }}</p>
-          <p class="session-code" *ngIf="session.manualAttendanceCode">Manual code: {{ session.manualAttendanceCode }}</p>
+    <div class="empty-state" *ngIf="!hasVisibleSessions()">
+      <span class="material-icons">event_busy</span>
+      <p>No sessions yet. Start a session above.</p>
+    </div>
+
+    <ng-container *ngIf="hasVisibleSessions()">
+      <section class="session-group" *ngIf="activeSessionsList().length > 0">
+        <h3 class="session-group-title">
+          <span class="material-icons">radio_button_checked</span>
+          Active
+          <span class="session-count">{{ activeSessionsList().length }}</span>
+        </h3>
+        <div class="session-list">
+          <div class="session-item" *ngFor="let session of activeSessionsList()">
+            <ng-container *ngTemplateOutlet="sessionRow; context: { $implicit: session, showEnd: true }" />
+          </div>
         </div>
-        <div class="session-actions">
-          <span class="badge mode-badge" [ngClass]="sessionModeClass(session)">
-            {{ sessionModeLabel(session) }}
-          </span>
-          <span class="badge" [ngClass]="'badge-' + session.status">
-            {{ session.status }}
-          </span>
+      </section>
+
+      <section class="session-group session-group-history">
+        <button
+          type="button"
+          class="session-group-toggle"
+          (click)="toggleHistorySection()"
+          [attr.aria-expanded]="historySectionExpanded()"
+        >
+          <h3 class="session-group-title">
+            <span class="material-icons">{{ historySectionExpanded() ? 'expand_less' : 'expand_more' }}</span>
+            History
+            <span class="session-count">{{ filteredHistorySessions().length }}</span>
+          </h3>
+        </button>
+
+        <div class="history-panel" *ngIf="historySectionExpanded()">
+          <div class="history-toolbar">
+            <div class="history-filters" role="group" aria-label="Filter history by date">
+              <button
+                type="button"
+                class="filter-chip"
+                [class.filter-chip-active]="historyDateFilter() === 'week'"
+                (click)="setHistoryDateFilter('week')"
+              >
+                This week
+              </button>
+              <button
+                type="button"
+                class="filter-chip"
+                [class.filter-chip-active]="historyDateFilter() === 'month'"
+                (click)="setHistoryDateFilter('month')"
+              >
+                This month
+              </button>
+              <button
+                type="button"
+                class="filter-chip"
+                [class.filter-chip-active]="historyDateFilter() === 'all'"
+                (click)="setHistoryDateFilter('all')"
+              >
+                All time
+              </button>
+            </div>
+
+            <input
+              type="search"
+              class="history-search"
+              placeholder="Search subject, section, or code..."
+              [ngModel]="historySearchQuery()"
+              (ngModelChange)="onHistorySearchChange($event)"
+              aria-label="Search session history"
+            />
+
+            <div class="history-clear-bar">
+              <p class="history-clear-hint">
+                Hide completed sessions older than 30 days from this list. Attendance records are not deleted.
+              </p>
+              <button
+                type="button"
+                class="btn-clear-history"
+                (click)="clearOldHistory()"
+                [disabled]="isClearingOldHistory"
+                aria-label="Clear sessions older than 30 days from list"
+              >
+                <span class="material-icons" *ngIf="!isClearingOldHistory">delete_sweep</span>
+                <span class="loader loader-dark" *ngIf="isClearingOldHistory" aria-hidden="true"></span>
+                <span>{{ isClearingOldHistory ? 'Clearing...' : 'Clear older than 30 days' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <p class="history-meta" *ngIf="historyHiddenCount() > 0">
+            {{ historyHiddenCount() }} session{{ historyHiddenCount() === 1 ? '' : 's' }} hidden from this list.
+          </p>
+
+          <div class="empty-state history-empty" *ngIf="filteredHistorySessions().length === 0">
+            <span class="material-icons">filter_list_off</span>
+            <p>No completed sessions match your filters.</p>
+          </div>
+
+          <div class="session-list" *ngIf="displayedHistorySessions().length > 0">
+            <div class="session-item" *ngFor="let session of displayedHistorySessions()">
+              <ng-container *ngTemplateOutlet="sessionRow; context: { $implicit: session, showEnd: false }" />
+            </div>
+          </div>
+
           <button
-            *ngIf="session.status === 'active'"
-            class="btn-danger"
+            *ngIf="hasMoreHistory()"
             type="button"
-            (click)="endSession(session.id)"
-            [disabled]="endingSessionId === session.id"
+            class="btn-load-more"
+            (click)="loadMoreHistory()"
           >
-            <span *ngIf="endingSessionId !== session.id">End Session</span>
-            <span *ngIf="endingSessionId === session.id">Ending...</span>
+            Load more ({{ filteredHistorySessions().length - historyVisibleCount() }} remaining)
           </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </ng-container>
   </div>
 
 </div>
+
+<ng-template #sessionRow let-session let-showEnd="showEnd">
+  <div class="session-info">
+    <p class="session-subject">{{ session.subject }}</p>
+    <p class="session-meta">{{ session.section }} • {{ session.date }}</p>
+    <p class="session-code" *ngIf="session.manualAttendanceCode">Manual code: {{ session.manualAttendanceCode }}</p>
+  </div>
+  <div class="session-actions">
+    <span class="badge mode-badge" [ngClass]="sessionModeClass(session)">
+      {{ sessionModeLabel(session) }}
+    </span>
+    <span class="badge" [ngClass]="'badge-' + session.status">
+      {{ session.status }}
+    </span>
+    <button
+      *ngIf="showEnd"
+      class="btn-danger"
+      type="button"
+      (click)="endSession(session.id)"
+      [disabled]="endingSessionId === session.id"
+    >
+      <span *ngIf="endingSessionId !== session.id">End Session</span>
+      <span *ngIf="endingSessionId === session.id">Ending...</span>
+    </button>
+    <button
+      *ngIf="!showEnd"
+      class="btn-ghost"
+      type="button"
+      (click)="hideSessionFromList(session.id)"
+      [disabled]="hidingSessionId === session.id"
+      aria-label="Remove session from list"
+    >
+      <span *ngIf="hidingSessionId !== session.id">Remove</span>
+      <span *ngIf="hidingSessionId === session.id">Removing...</span>
+    </button>
+  </div>
+</ng-template>

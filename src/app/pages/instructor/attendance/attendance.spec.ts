@@ -17,6 +17,13 @@ describe('AttendanceComponent', () => {
             getInstructorSessionsForOwner: () => Promise.resolve([]),
             getInstructorClasses: () => Promise.resolve([]),
             getAuthAccountByEmail: () => Promise.resolve(null),
+            hideInstructorSessionFromList: () => Promise.resolve(null),
+            hideCompletedSessionsOlderThan: () => Promise.resolve(0),
+            findClassMatchingSession: () => null,
+            isManualAttendanceCodeUnique: () => Promise.resolve(true),
+            createUniqueManualAttendanceCode: () => Promise.resolve('CODE01'),
+            addInstructorSession: (session: unknown) => Promise.resolve(session),
+            updateInstructorSession: (_id: string, session: unknown) => Promise.resolve(session),
           },
         },
         {

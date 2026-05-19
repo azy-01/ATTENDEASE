@@ -1,6 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import Swal from 'sweetalert2';
 import {
   FACE_TO_FACE_CLASS_MODE,
   StudentApiService,
@@ -8,6 +9,16 @@ import {
   type InstructorSession,
 } from '../../../core/data/student-api.service';
 import { NotificationService } from '../../../core/data/notification.service';
+import {
+  HISTORY_BULK_HIDE_DAYS,
+  HISTORY_PAGE_SIZE,
+  isSessionActive,
+  isSessionHistory,
+  matchesHistoryDateFilter,
+  matchesSessionSearch,
+  sortSessionsNewestFirst,
+  type HistoryDateFilter,
+} from '../../../core/data/instructor-session.utils';
 import { TakeAttendancePanelComponent } from './take-attendance-panel.component';
 
 @Component({
@@ -39,6 +50,8 @@ export class AttendanceComponent {
   isStarting: boolean = false;
   isGeneratingManualCode: boolean = false;
   endingSessionId: string | null = null;
+  hidingSessionId: string | null = null;
+  isClearingOldHistory: boolean = false;
   startError: string = '';
   startSuccess: string = '';
 
@@ -47,11 +60,44 @@ export class AttendanceComponent {
   private scopedClasses: InstructorClass[] = [];
   instructorAuthId = '';
 
-  readonly recentSessions = signal<InstructorSession[]>([]);
+  readonly allSessions = signal<InstructorSession[]>([]);
+  readonly historyDateFilter = signal<HistoryDateFilter>('month');
+  readonly historySearchQuery = signal('');
+  readonly historyVisibleCount = signal(HISTORY_PAGE_SIZE);
+  readonly historySectionExpanded = signal(true);
 
-  readonly activeSessions = computed(() =>
-    this.recentSessions().filter((session) => session.status === 'active')
+  readonly visibleSessions = computed(() =>
+    sortSessionsNewestFirst(this.allSessions().filter((session) => !session.hiddenFromListAt?.trim()))
   );
+
+  readonly activeSessionsList = computed(() =>
+    this.visibleSessions().filter((session) => isSessionActive(session))
+  );
+
+  readonly activeSessions = computed(() => this.activeSessionsList());
+
+  readonly filteredHistorySessions = computed(() =>
+    this.visibleSessions()
+      .filter((session) => isSessionHistory(session))
+      .filter((session) => matchesHistoryDateFilter(session, this.historyDateFilter()))
+      .filter((session) => matchesSessionSearch(session, this.historySearchQuery()))
+  );
+
+  readonly displayedHistorySessions = computed(() =>
+    this.filteredHistorySessions().slice(0, this.historyVisibleCount())
+  );
+
+  readonly hasMoreHistory = computed(
+    () => this.filteredHistorySessions().length > this.historyVisibleCount()
+  );
+
+  readonly historyHiddenCount = computed(() =>
+    this.allSessions().filter(
+      (session) => Boolean(session.hiddenFromListAt?.trim()) && isSessionHistory(session)
+    ).length
+  );
+
+  readonly hasVisibleSessions = computed(() => this.visibleSessions().length > 0);
 
   constructor(
     private readonly api: StudentApiService,
@@ -120,7 +166,7 @@ export class AttendanceComponent {
 
         try {
           const saved = await this.api.addInstructorSession(newSession);
-          this.recentSessions.set([saved, ...this.recentSessions()]);
+          this.allSessions.set(sortSessionsNewestFirst([saved, ...this.allSessions()]));
           this.startSuccess = this.buildStartSuccessMessage(saved);
           this.notifications.add(
             'Attendance session started',
@@ -128,7 +174,7 @@ export class AttendanceComponent {
             'instructor'
           );
         } catch {
-          this.recentSessions.set([newSession, ...this.recentSessions()]);
+          this.allSessions.set(sortSessionsNewestFirst([newSession, ...this.allSessions()]));
           this.startSuccess = this.buildStartSuccessMessage(newSession);
           this.notifications.add(
             'Attendance session started',
@@ -169,7 +215,7 @@ export class AttendanceComponent {
       return;
     }
 
-    const targetSession = this.recentSessions().find((session) => session.id === sessionId);
+    const targetSession = this.allSessions().find((session) => session.id === sessionId);
     if (!targetSession || targetSession.status !== 'active') {
       return;
     }
@@ -182,17 +228,115 @@ export class AttendanceComponent {
       const updatedSession: InstructorSession = {
         ...targetSession,
         status: 'completed',
+        endedAt: new Date().toISOString(),
       };
       const saved = await this.api.updateInstructorSession(sessionId, updatedSession);
-      this.recentSessions.set(
-        this.recentSessions().map((session) => (session.id === sessionId ? saved : session))
-      );
+      this.patchSession(saved);
       this.startSuccess = `Session for ${saved.subject} (${saved.section}) ended.`;
     } catch {
       this.startError = 'Unable to end session right now. Please try again.';
     } finally {
       this.endingSessionId = null;
     }
+  }
+
+  async hideSessionFromList(sessionId: string): Promise<void> {
+    if (this.hidingSessionId || !sessionId || !this.instructorAuthId) {
+      return;
+    }
+
+    const targetSession = this.allSessions().find((session) => session.id === sessionId);
+    if (!targetSession || targetSession.status === 'active') {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Remove from list?',
+      html: `Hide <strong>${targetSession.subject}</strong> (${targetSession.section}) from your session list?<br><small>Attendance records are not deleted.</small>`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Remove',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4f46e5',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    this.hidingSessionId = sessionId;
+    this.startError = '';
+    this.startSuccess = '';
+
+    try {
+      const saved = await this.api.hideInstructorSessionFromList(sessionId, this.instructorAuthId);
+      if (saved) {
+        this.patchSession(saved);
+        this.startSuccess = 'Session removed from your list.';
+      }
+    } catch {
+      this.startError = 'Unable to remove session from list. Please try again.';
+    } finally {
+      this.hidingSessionId = null;
+    }
+  }
+
+  async clearOldHistory(): Promise<void> {
+    if (this.isClearingOldHistory || !this.instructorAuthId) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Clear old sessions?',
+      text: `Hide completed sessions older than ${HISTORY_BULK_HIDE_DAYS} days from your list. Records are kept.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Clear old sessions',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4f46e5',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    this.isClearingOldHistory = true;
+    this.startError = '';
+    this.startSuccess = '';
+
+    try {
+      const count = await this.api.hideCompletedSessionsOlderThan(
+        this.instructorAuthId,
+        HISTORY_BULK_HIDE_DAYS
+      );
+      await this.loadSessions();
+      this.startSuccess =
+        count > 0
+          ? `${count} old session${count === 1 ? '' : 's'} removed from your list.`
+          : 'No sessions older than 30 days to clear.';
+    } catch {
+      this.startError = 'Unable to clear old sessions right now. Please try again.';
+    } finally {
+      this.isClearingOldHistory = false;
+    }
+  }
+
+  setHistoryDateFilter(filter: HistoryDateFilter): void {
+    this.historyDateFilter.set(filter);
+    this.historyVisibleCount.set(HISTORY_PAGE_SIZE);
+  }
+
+  onHistorySearchChange(value: string): void {
+    this.historySearchQuery.set(value);
+    this.historyVisibleCount.set(HISTORY_PAGE_SIZE);
+  }
+
+  loadMoreHistory(): void {
+    this.historyVisibleCount.update((count) => count + HISTORY_PAGE_SIZE);
+  }
+
+  toggleHistorySection(): void {
+    this.historySectionExpanded.update((expanded) => !expanded);
   }
 
   sessionModeLabel(session: InstructorSession): string {
@@ -223,32 +367,36 @@ export class AttendanceComponent {
     try {
       const rawSession = localStorage.getItem(this.authSessionStorageKey);
       if (!rawSession) {
-        this.recentSessions.set([]);
+        this.allSessions.set([]);
         return;
       }
       const session = JSON.parse(rawSession) as { role?: string; email?: string };
       const email = (session.email ?? '').trim().toLowerCase();
       if (session.role !== 'instructor' || !email) {
-        this.recentSessions.set([]);
+        this.allSessions.set([]);
         return;
       }
       const account = await this.api.getAuthAccountByEmail('instructor', email);
       if (!account?.id) {
-        this.recentSessions.set([]);
+        this.allSessions.set([]);
         return;
       }
       this.instructorAuthId = account.id;
-      const sessions = await this.api.getInstructorSessionsForOwner(account.id);
-      this.recentSessions.set(
-        sessions.sort((first, second) => {
-          const firstTime = new Date(first.startedAt ?? first.date).getTime();
-          const secondTime = new Date(second.startedAt ?? second.date).getTime();
-          return secondTime - firstTime;
-        })
-      );
+      const sessions = await this.api.getInstructorSessionsForOwner(account.id, {
+        includeHidden: true,
+      });
+      this.allSessions.set(sortSessionsNewestFirst(sessions));
     } catch {
-      this.recentSessions.set([]);
+      this.allSessions.set([]);
     }
+  }
+
+  private patchSession(updated: InstructorSession): void {
+    this.allSessions.set(
+      sortSessionsNewestFirst(
+        this.allSessions().map((session) => (session.id === updated.id ? updated : session))
+      )
+    );
   }
 
   private async loadAllowedSections(): Promise<void> {

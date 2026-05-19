@@ -127,6 +127,10 @@ export interface InstructorSession {
   status: 'active' | 'completed' | 'cancelled';
   manualAttendanceCode?: string;
   startedAt?: string;
+  /** Set when the instructor ends the session. */
+  endedAt?: string;
+  /** When set, session is hidden from instructor Recent Sessions (records unchanged). */
+  hiddenFromListAt?: string;
   /** Auth account id (`authAccounts` document id) — scopes session to one instructor. */
   instructorAuthId?: string;
   /** Resolved from the class when the session is created. */
@@ -1349,19 +1353,82 @@ export class StudentApiService {
   }
 
   /** Sessions created by the logged-in instructor (matches `authAccounts` id). */
-  getInstructorSessionsForOwner(instructorAuthId: string): Promise<InstructorSession[]> {
+  getInstructorSessionsForOwner(
+    instructorAuthId: string,
+    options?: { includeHidden?: boolean }
+  ): Promise<InstructorSession[]> {
     const trimmed = instructorAuthId.trim();
     if (!trimmed) {
       return Promise.resolve([]);
     }
     const ref = collection(this.db, 'instructorSessions');
     const ownerQuery = query(ref, where('instructorAuthId', '==', trimmed));
-    return getDocs(ownerQuery).then((snapshot) =>
-      snapshot.docs.map((item) => {
+    return getDocs(ownerQuery).then((snapshot) => {
+      const sessions = snapshot.docs.map((item) => {
         const data = item.data() as InstructorSession;
         return { ...data, id: data.id ?? item.id };
-      })
+      });
+      if (options?.includeHidden) {
+        return sessions;
+      }
+      return sessions.filter((session) => !session.hiddenFromListAt?.trim());
+    });
+  }
+
+  async hideInstructorSessionFromList(
+    sessionId: string,
+    instructorAuthId: string
+  ): Promise<InstructorSession | null> {
+    const normalizedId = sessionId.trim();
+    const ownerId = instructorAuthId.trim();
+    if (!normalizedId || !ownerId) {
+      return null;
+    }
+
+    const session = await this.getInstructorSessionById(normalizedId);
+    if (!session) {
+      return null;
+    }
+    if ((session.instructorAuthId ?? '').trim() !== ownerId) {
+      throw new Error('SESSION_NOT_OWNED');
+    }
+    if (session.status === 'active') {
+      throw new Error('SESSION_STILL_ACTIVE');
+    }
+    if (session.hiddenFromListAt?.trim()) {
+      return session;
+    }
+
+    const updated: InstructorSession = {
+      ...session,
+      hiddenFromListAt: new Date().toISOString(),
+    };
+    return this.updateInstructorSession(normalizedId, updated);
+  }
+
+  async hideCompletedSessionsOlderThan(
+    instructorAuthId: string,
+    olderThanDays: number
+  ): Promise<number> {
+    const ownerId = instructorAuthId.trim();
+    if (!ownerId || olderThanDays < 1) {
+      return 0;
+    }
+
+    const sessions = await this.getInstructorSessionsForOwner(ownerId, { includeHidden: true });
+    const cutoff = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+    const toHide = sessions.filter((session) => {
+      if (session.status === 'active' || session.hiddenFromListAt?.trim()) {
+        return false;
+      }
+      const sortTime = new Date(session.startedAt ?? session.endedAt ?? session.date).getTime();
+      return !Number.isNaN(sortTime) && sortTime < cutoff;
+    });
+
+    await Promise.all(
+      toHide.map((session) => this.hideInstructorSessionFromList(session.id, ownerId))
     );
+    return toHide.length;
   }
 
   async getActiveInstructorSessions(): Promise<InstructorSession[]> {

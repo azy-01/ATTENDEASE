@@ -337,6 +337,7 @@ export class OverviewComponent implements OnInit {
     scopedSubjects: Set<string>
   ): InstructorSession[] {
     return sessions
+      .filter((item) => !item.hiddenFromListAt?.trim())
       .filter((item) => {
         const section = (item.section ?? '').trim().toLowerCase();
         const subject = (item.subject ?? '').trim().toLowerCase();
@@ -346,6 +347,10 @@ export class OverviewComponent implements OnInit {
         }
         return scopedSubjects.size > 0 ? scopedSubjects.has(subject) : true;
       })
-      .sort((first, second) => this.toUnix(second.date) - this.toUnix(first.date));
+      .sort((first, second) => {
+        const firstTime = new Date(first.startedAt ?? first.endedAt ?? first.date).getTime();
+        const secondTime = new Date(second.startedAt ?? second.endedAt ?? second.date).getTime();
+        return secondTime - firstTime;
+      });
   }
 }
