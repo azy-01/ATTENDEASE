@@ -283,7 +283,15 @@ export class StudentApiService {
     const authWrites = this.defaultAuthAccounts.map((account) =>
       setDoc(doc(this.db, 'authAccounts', account.id), account, { merge: true })
     );
-    return Promise.all([studentWrite, instructorWrite, ...authWrites]).then(() => undefined);
+    const roleSyncBatch = writeBatch(this.db);
+    for (const account of this.defaultAuthAccounts) {
+      if (account.role === 'student' && account.qrCodeValue) {
+        this.queueRoleCollectionSync(roleSyncBatch, account);
+      }
+    }
+    return Promise.all([studentWrite, instructorWrite, ...authWrites])
+      .then(() => roleSyncBatch.commit())
+      .then(() => undefined);
   }
 
   async registerAccount(payload: {
@@ -752,25 +760,52 @@ export class StudentApiService {
     });
   }
 
-  getStudentProfileByQrCode(qrCodeValue: string): Promise<StudentProfile | null> {
+  async getStudentProfileByQrCode(qrCodeValue: string): Promise<StudentProfile | null> {
     const normalizedQrCode = qrCodeValue.trim();
     if (!normalizedQrCode) {
-      return Promise.resolve(null);
+      return null;
     }
 
-    const studentsRef = collection(this.db, 'students');
-    const studentsQuery = query(studentsRef, where('qrCodeValue', '==', normalizedQrCode));
-    return getDocs(studentsQuery).then((snapshot) => {
-      const firstDoc = snapshot.docs[0];
-      if (!firstDoc) return null;
-      const data = firstDoc.data() as Omit<StudentProfile, 'id'> & Partial<Pick<StudentProfile, 'id'>>;
+    const fromStudents = await this.queryStudentProfileByQrCode(normalizedQrCode);
+    if (fromStudents?.email) {
+      return fromStudents;
+    }
+
+    const authAccount = await this.findAuthAccountByQrCode(normalizedQrCode);
+    if (authAccount?.role === 'student' && authAccount.email) {
+      const qr = authAccount.qrCodeValue?.trim() ?? normalizedQrCode;
+      await this.syncStudentQrCodeByEmail(authAccount.email, qr);
       return {
-        id: String(data.id ?? firstDoc.id),
-        fullName: data.fullName ?? '',
-        email: data.email ?? '',
-        qrCodeValue: data.qrCodeValue ?? ''
+        id: `std-${authAccount.id}`,
+        fullName: authAccount.fullName,
+        email: authAccount.email,
+        qrCodeValue: qr
       };
-    });
+    }
+
+    const legacyEmail = this.parseLegacyStudentQrEmail(normalizedQrCode);
+    if (!legacyEmail) {
+      return null;
+    }
+
+    const profileByEmail = await this.getStudentProfile(legacyEmail);
+    if (profileByEmail?.email) {
+      return profileByEmail;
+    }
+
+    const authByEmail = await this.findAuthAccountByEmail('student', legacyEmail);
+    if (!authByEmail?.email) {
+      return null;
+    }
+
+    const qr = authByEmail.qrCodeValue?.trim() ?? normalizedQrCode;
+    await this.syncStudentQrCodeByEmail(authByEmail.email, qr);
+    return {
+      id: `std-${authByEmail.id}`,
+      fullName: authByEmail.fullName,
+      email: authByEmail.email,
+      qrCodeValue: qr
+    };
   }
 
   async getInstructorClasses(): Promise<InstructorClass[]> {
@@ -1717,6 +1752,53 @@ export class StudentApiService {
       archivedAt: record.archivedAt,
       archivedBy: record.archivedBy
     };
+  }
+
+  private queryStudentProfileByQrCode(qrCodeValue: string): Promise<StudentProfile | null> {
+    const studentsRef = collection(this.db, 'students');
+    const studentsQuery = query(studentsRef, where('qrCodeValue', '==', qrCodeValue));
+    return getDocs(studentsQuery).then((snapshot) => {
+      const firstDoc = snapshot.docs[0];
+      if (!firstDoc) {
+        return null;
+      }
+      const data = firstDoc.data() as Omit<StudentProfile, 'id'> & Partial<Pick<StudentProfile, 'id'>>;
+      return {
+        id: String(data.id ?? firstDoc.id),
+        fullName: data.fullName ?? '',
+        email: data.email ?? '',
+        qrCodeValue: data.qrCodeValue ?? ''
+      };
+    });
+  }
+
+  private findAuthAccountByQrCode(qrCodeValue: string): Promise<AuthAccount | null> {
+    const authRef = collection(this.db, 'authAccounts');
+    const authQuery = query(authRef, where('qrCodeValue', '==', qrCodeValue));
+    return getDocs(authQuery).then((snapshot) => {
+      const studentDoc = snapshot.docs.find((item) => {
+        const data = item.data() as { role?: AuthAccount['role'] };
+        return data.role === 'student';
+      });
+      if (!studentDoc) {
+        return null;
+      }
+      return this.mapAuthAccountDoc(studentDoc.id, studentDoc.data(), 'student');
+    });
+  }
+
+  private parseLegacyStudentQrEmail(qrCodeValue: string): string | null {
+    const prefix = 'ATTENDEASE-STUDENT-';
+    if (!qrCodeValue.toUpperCase().startsWith(prefix)) {
+      return null;
+    }
+
+    const remainder = qrCodeValue.slice(prefix.length).trim().toLowerCase();
+    if (!remainder.includes('@')) {
+      return null;
+    }
+
+    return remainder;
   }
 
   private findAuthAccountByEmail(
