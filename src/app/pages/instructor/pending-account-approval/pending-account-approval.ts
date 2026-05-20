@@ -269,21 +269,33 @@ export class PendingAccountApprovalComponent {
       return;
     }
 
-    const roleLabel = account.role === 'instructor' ? 'instructor' : 'student';
-    const emailResult = await this.accountEmail.sendApprovalNotification({
+    const accountRole = account.role === 'student' ? 'student' : 'instructor';
+    const emailResult = await this.accountEmail.sendRoleApprovalNotification({
       toEmail: account.email,
       recipientName: account.fullName,
-      subject: `Your AttendEase ${roleLabel} account has been approved`,
-      message: `Your ${roleLabel} registration for AttendEase has been approved. You can now log in with your Gmail address and password.`
+      accountRole
     });
 
     this.removePending(accountId);
     this.closeDetail();
-    this.message.set(
-      emailResult.sent
-        ? 'Registration approved. The applicant was notified by email.'
-        : `Registration approved. Email could not be sent: ${emailResult.message}`
-    );
+
+    if (emailResult.sent) {
+      await Swal.fire({
+        title: 'Registration approved',
+        html: `<p><strong>${this.escapeHtml(account.fullName)}</strong> was approved.</p>
+          <p style="margin:8px 0 0;font-size:13px;color:#6b7280;">Notification sent to ${this.escapeHtml(account.email)}</p>`,
+        icon: 'success',
+        confirmButtonColor: '#4f46e5'
+      });
+      return;
+    }
+
+    await Swal.fire({
+      title: 'Registration approved',
+      text: `The account was approved, but the email could not be sent: ${emailResult.message}`,
+      icon: 'warning',
+      confirmButtonColor: '#4f46e5'
+    });
   }
 
   async rejectRegistration(account: AuthAccount): Promise<void> {
@@ -327,12 +339,12 @@ export class PendingAccountApprovalComponent {
         return;
       }
 
-      const roleLabel = account.role === 'instructor' ? 'instructor' : 'student';
-      const emailResult = await this.accountEmail.sendRejectionNotification({
+      const accountRole = account.role === 'student' ? 'student' : 'instructor';
+      const emailResult = await this.accountEmail.sendRoleRejectionNotification({
         toEmail: account.email,
         recipientName: account.fullName,
-        subject: `Your AttendEase ${roleLabel} registration was not approved`,
-        message: reason
+        accountRole,
+        reason
       });
 
       this.removePending(account.id);

@@ -2,8 +2,15 @@ import { Injectable } from '@angular/core';
 import emailjs from '@emailjs/browser';
 import { environment } from '../../../environments/environment';
 import { getGmailValidationError, normalizeEmailAddress } from '../utils/gmail.utils';
+import {
+  buildAdminRegistrationAlertEmail,
+  buildApprovalEmail,
+  buildRegistrationReceivedEmail,
+  buildRejectionEmail,
+  type AccountEmailRole
+} from './account-email.copy';
 
-export type ArchivedAccountRole = 'instructor' | 'student';
+export type ArchivedAccountRole = AccountEmailRole;
 
 export interface AccountArchiveEmailPayload {
   toEmail: string;
@@ -16,7 +23,36 @@ export interface AccountStatusEmailPayload {
   recipientName: string;
   subject: string;
   message: string;
+  /** Separate from message so EmailJS templates can show `Reason: {{reason}}` without duplicating the body. */
+  reason?: string;
   accountRole?: ArchivedAccountRole;
+}
+
+export interface RegistrationReceivedEmailPayload {
+  toEmail: string;
+  recipientName: string;
+  firstName: string;
+  accountRole: AccountEmailRole;
+}
+
+export interface AdminRegistrationAlertPayload {
+  applicantName: string;
+  applicantEmail: string;
+  accountRole: AccountEmailRole;
+  submittedAt: string;
+}
+
+export interface RoleApprovalEmailPayload {
+  toEmail: string;
+  recipientName: string;
+  accountRole: AccountEmailRole;
+}
+
+export interface RoleRejectionEmailPayload {
+  toEmail: string;
+  recipientName: string;
+  accountRole: AccountEmailRole;
+  reason: string;
 }
 
 export interface AccountEmailResult {
@@ -27,10 +63,97 @@ export interface AccountEmailResult {
 /**
  * Sends account notifications to the user's Gmail via EmailJS.
  * Configure `environment.accountEmail.emailjs` with your EmailJS credentials.
+ * The EmailJS template must use dynamic `{{subject}}` and `{{message}}` fields.
  */
 @Injectable({ providedIn: 'root' })
 export class AccountEmailService {
   private emailJsInitialized = false;
+
+  async sendRegistrationReceivedNotification(
+    payload: RegistrationReceivedEmailPayload
+  ): Promise<AccountEmailResult> {
+    const content = buildRegistrationReceivedEmail(payload.firstName, payload.accountRole);
+
+    return this.sendNotification({
+      toEmail: payload.toEmail,
+      recipientName: payload.recipientName,
+      subject: content.subject,
+      message: content.message,
+      reason: content.reason,
+      accountRole: payload.accountRole
+    });
+  }
+
+  async sendAdminRegistrationAlert(
+    payload: AdminRegistrationAlertPayload
+  ): Promise<AccountEmailResult> {
+    const adminEmails = environment.accountEmail?.adminNotifyEmails ?? [];
+    if (!adminEmails.length) {
+      return { sent: false, message: 'No admin notification emails configured.' };
+    }
+
+    const content = buildAdminRegistrationAlertEmail({
+      ...payload,
+      appUrl: environment.accountEmail?.appUrl
+    });
+
+    const failures: string[] = [];
+    let sentCount = 0;
+
+    for (const adminEmail of adminEmails) {
+      const result = await this.sendNotification({
+        toEmail: adminEmail,
+        recipientName: 'AttendEase Admin',
+        subject: content.subject,
+        message: content.message,
+        accountRole: payload.accountRole
+      });
+
+      if (result.sent) {
+        sentCount += 1;
+        continue;
+      }
+
+      failures.push(`${adminEmail}: ${result.message}`);
+    }
+
+    if (sentCount > 0) {
+      return {
+        sent: true,
+        message: `Admin alert sent to ${sentCount} recipient(s).`
+      };
+    }
+
+    return {
+      sent: false,
+      message: failures.join(' ') || 'Unable to notify administrators.'
+    };
+  }
+
+  async sendRoleApprovalNotification(payload: RoleApprovalEmailPayload): Promise<AccountEmailResult> {
+    const content = buildApprovalEmail(payload.accountRole, environment.accountEmail?.appUrl);
+
+    return this.sendApprovalNotification({
+      toEmail: payload.toEmail,
+      recipientName: payload.recipientName,
+      subject: content.subject,
+      message: content.message,
+      accountRole: payload.accountRole
+    });
+  }
+
+  async sendRoleRejectionNotification(payload: RoleRejectionEmailPayload): Promise<AccountEmailResult> {
+    const content = buildRejectionEmail(payload.accountRole, payload.reason);
+
+    return this.sendRejectionNotification({
+      toEmail: payload.toEmail,
+      recipientName: payload.recipientName,
+      subject: content.subject,
+      message: content.message,
+      reason: content.reason,
+      accountRole: payload.accountRole
+    });
+  }
 
   async sendArchiveNotification(
     payload: AccountArchiveEmailPayload,
@@ -41,11 +164,14 @@ export class AccountEmailService {
         ? 'Your AttendEase student account has been archived'
         : 'Your AttendEase instructor account has been archived';
 
+    const trimmedReason = payload.reason.trim();
+
     return this.sendNotification({
       toEmail: payload.toEmail,
       recipientName: payload.recipientName,
       subject,
-      message: payload.reason.trim(),
+      message: `Your AttendEase ${role} account has been archived.`,
+      reason: trimmedReason,
       accountRole: role
     });
   }
@@ -91,16 +217,22 @@ export class AccountEmailService {
     const recipientName = payload.recipientName.trim() || 'User';
     const accountRole = payload.accountRole ?? 'instructor';
 
+    const reason = payload.reason?.trim() ?? '';
+
     const templateParams: Record<string, string> = {
       to_email: normalizedEmail,
       user_email: normalizedEmail,
       email: normalizedEmail,
       user_name: recipientName,
       to_name: recipientName,
-      reason: message,
+      reason,
       subject,
       message,
-      account_role: accountRole
+      account_role: accountRole,
+      time: new Date().toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })
     };
 
     try {

@@ -2,7 +2,9 @@ import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { StudentApiService } from '../core/data/student-api.service';
+import { AccountEmailService } from '../core/data/account-email.service';
+import { NotificationService } from '../core/data/notification.service';
+import { StudentApiService, type AuthAccount } from '../core/data/student-api.service';
 import { VerificationUploadService } from '../core/data/verification-upload.service';
 import { getGmailValidationError } from '../core/utils/gmail.utils';
 
@@ -74,6 +76,8 @@ export class LandingComponent implements OnInit, OnDestroy {
     private readonly route: ActivatedRoute,
     private readonly studentApi: StudentApiService,
     private readonly verificationUpload: VerificationUploadService,
+    private readonly accountEmail: AccountEmailService,
+    private readonly notifications: NotificationService,
     private readonly cdr: ChangeDetectorRef
   ) { }
   private readonly themeStorageKey = 'attendease-theme';
@@ -418,7 +422,7 @@ export class LandingComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
     try {
-      await this.studentApi.registerAccount({
+      const account = await this.studentApi.registerAccount({
         role: 'instructor',
         firstName: f.firstName,
         lastName: f.lastName,
@@ -426,8 +430,8 @@ export class LandingComponent implements OnInit, OnDestroy {
         password: f.password,
         verificationFiles: this.instructorVerificationFiles
       });
+      await this.handlePostSignupNotifications(account);
       this.closeModal();
-      this.showToast('Account submitted. Please wait for admin approval before logging in.', '#4F46E5', 'rgba(79,70,229,.4)');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to create account right now.';
       this.formErrors['auth'] = message;
@@ -455,7 +459,7 @@ export class LandingComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
     try {
-      await this.studentApi.registerAccount({
+      const account = await this.studentApi.registerAccount({
         role: 'student',
         firstName: f.firstName,
         lastName: f.lastName,
@@ -463,8 +467,8 @@ export class LandingComponent implements OnInit, OnDestroy {
         password: f.password,
         verificationFiles: this.studentVerificationFiles
       });
+      await this.handlePostSignupNotifications(account);
       this.closeModal();
-      this.showToast('Account submitted. Please wait for admin approval before logging in.', '#4F46E5', 'rgba(79,70,229,.4)');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to create account right now.';
       this.formErrors['auth'] = message;
@@ -475,6 +479,38 @@ export class LandingComponent implements OnInit, OnDestroy {
   }
 
   // ── Scroll reveal ─────────────────────────────────────────
+  private async handlePostSignupNotifications(account: AuthAccount): Promise<void> {
+    const emailResult = await this.accountEmail.sendRegistrationReceivedNotification({
+      toEmail: account.email,
+      recipientName: account.fullName,
+      firstName: account.firstName,
+      accountRole: account.role === 'student' ? 'student' : 'instructor'
+    });
+
+    void this.accountEmail.sendAdminRegistrationAlert({
+      applicantName: account.fullName,
+      applicantEmail: account.email,
+      accountRole: account.role === 'student' ? 'student' : 'instructor',
+      submittedAt: account.createdAt ?? new Date().toISOString()
+    });
+
+    const roleLabel = account.role === 'student' ? 'student' : 'instructor';
+    const adminMessage = `${account.fullName} (${roleLabel}) submitted a registration. Review in Pending Approvals.`;
+    this.notifications.add('New registration', adminMessage, 'admin');
+    this.notifications.add('New registration', adminMessage, 'superadmin');
+
+    const successToast =
+      'Account submitted. Check your Gmail for a confirmation email. You can log in after an admin approves your account.';
+    const warningToast =
+      'Account submitted, but we could not send a confirmation email. Your registration is still pending approval.';
+
+    this.showToast(
+      emailResult.sent ? successToast : warningToast,
+      emailResult.sent ? '#4F46E5' : '#D97706',
+      emailResult.sent ? 'rgba(79,70,229,.4)' : 'rgba(217,119,6,.4)'
+    );
+  }
+
   private setupScrollReveal(): void {
     const observer = new IntersectionObserver(
       (entries) => {

@@ -62,6 +62,24 @@ Main route groups:
 - Mock data is stored in `db.json`.
 - This project uses standalone Angular components rather than NgModules.
 
+## Account email notifications (EmailJS)
+
+Signup, approval, rejection, and archive emails are sent from the browser via [EmailJS](https://www.emailjs.com/). Configure credentials in `src/environments/environment.ts` under `accountEmail`.
+
+**EmailJS template requirements** (template `template_xdnxlzw` or your replacement):
+
+- **Subject:** `{{subject}}`
+- **Body:** greeting (`Hi {{user_name}},`) + `{{message}}`
+- **Reason (reject/archive only):** `Reason: {{reason}}` — leave this line out if you prefer a single body block; approval/signup emails send an empty `reason`
+- **To:** `{{to_email}}`
+
+Optional environment fields:
+
+- `accountEmail.appUrl` — login link included in approval emails (default `http://localhost:4200`)
+- `accountEmail.adminNotifyEmails` — Gmail addresses for new-registration admin alerts (must be `@gmail.com`; leave `[]` to skip)
+
+See [docs/signup-email-notification-plan.md](docs/signup-email-notification-plan.md) for the full lifecycle and test matrix.
+
 ## Angular CLI
 
 This project uses Angular CLI `21.2.7`.

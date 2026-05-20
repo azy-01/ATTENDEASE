@@ -9,6 +9,9 @@ export const environment = {
     measurementId: 'G-ECRVHQLBCH'
   },
   accountEmail: {
+    appUrl: 'http://localhost:4200',
+    /** Gmail addresses to notify when someone self-registers. Leave empty to skip admin email alerts. */
+    adminNotifyEmails: [] as string[],
     emailjs: {
       serviceId: 'service_z5mm777',
       templateId: 'template_xdnxlzw',
