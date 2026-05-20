@@ -9,7 +9,7 @@ export const environment = {
     measurementId: 'G-ECRVHQLBCH'
   },
   accountEmail: {
-    appUrl: 'http://localhost:4200',
+    appUrl: 'https://attendease-ldmnswm4j-azy-01s-projects.vercel.app/',
     /** Gmail addresses to notify when someone self-registers. Leave empty to skip admin email alerts. */
     adminNotifyEmails: [] as string[],
     emailjs: {
