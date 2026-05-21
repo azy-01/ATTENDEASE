@@ -1,0 +1,68 @@
+<div class="notif-panel" role="region" aria-label="Notifications">
+  <div class="notif-panel__head">
+    <div class="notif-panel__title-wrap">
+      <h3 class="notif-panel__title">Notifications</h3>
+      <span class="notif-panel__count" *ngIf="unreadCount() > 0" aria-live="polite">
+        {{ unreadCount() }} new
+      </span>
+    </div>
+    <button
+      type="button"
+      class="notif-panel__mark-all"
+      [disabled]="unreadCount() === 0"
+      (click)="handleMarkAllRead($event)"
+    >
+      Mark all read
+    </button>
+  </div>
+
+  <div class="notif-panel__body" *ngIf="notifications().length; else emptyState">
+    <ul class="notif-panel__list" role="list">
+      <li
+        *ngFor="let notif of notifications(); trackBy: trackById"
+        class="notif-panel__item"
+        [class.notif-panel__item--unread]="!notif.read"
+      >
+        <ng-container *ngIf="visualFor(notif.title) as visual">
+        <button
+          type="button"
+          class="notif-panel__item-btn"
+          [attr.aria-label]="notif.title + '. ' + notif.message"
+          (click)="handleNotificationClick($event, notif)"
+        >
+          <span
+            class="notif-panel__icon"
+            [style.color]="visual.accent"
+            [style.background]="visual.accentBg"
+            aria-hidden="true"
+          >
+            <span class="material-icons">{{ visual.icon }}</span>
+          </span>
+          <span class="notif-panel__content">
+            <span class="notif-panel__row">
+              <span class="notif-panel__item-title">{{ notif.title }}</span>
+              <span class="notif-panel__time">{{ timeLabel(notif.createdAt) }}</span>
+            </span>
+            <span class="notif-panel__message">{{ notif.message }}</span>
+          </span>
+          <span class="notif-panel__unread-dot" *ngIf="!notif.read" aria-hidden="true"></span>
+        </button>
+        </ng-container>
+      </li>
+    </ul>
+  </div>
+
+  <ng-template #emptyState>
+    <div class="notif-panel__empty">
+      <span class="material-icons notif-panel__empty-icon" aria-hidden="true">notifications_none</span>
+      <p class="notif-panel__empty-title">You're all caught up</p>
+      <p class="notif-panel__empty-text">Activity from classes, attendance, and account updates will appear here.</p>
+    </div>
+  </ng-template>
+
+  <div class="notif-panel__foot" *ngIf="notifications().length">
+    <span class="notif-panel__foot-text">
+      {{ unreadCount() > 0 ? unreadCount() + ' unread notification' + (unreadCount() === 1 ? '' : 's') : 'All caught up' }}
+    </span>
+  </div>
+</div>

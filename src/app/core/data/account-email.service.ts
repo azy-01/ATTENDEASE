@@ -7,6 +7,7 @@ import {
   buildApprovalEmail,
   buildRegistrationReceivedEmail,
   buildRejectionEmail,
+  buildUnarchiveEmail,
   type AccountEmailRole
 } from './account-email.copy';
 
@@ -18,6 +19,11 @@ export interface AccountArchiveEmailPayload {
   reason: string;
 }
 
+export interface AccountUnarchiveEmailPayload {
+  toEmail: string;
+  recipientName: string;
+}
+
 export interface AccountStatusEmailPayload {
   toEmail: string;
   recipientName: string;
@@ -25,6 +31,8 @@ export interface AccountStatusEmailPayload {
   message: string;
   /** Separate from message so EmailJS templates can show `Reason: {{reason}}` without duplicating the body. */
   reason?: string;
+  /** When false, reason and reason_section are omitted (e.g. unarchive, approval). Defaults to true when reason is non-empty. */
+  includeReasonLine?: boolean;
   accountRole?: ArchivedAccountRole;
 }
 
@@ -176,6 +184,22 @@ export class AccountEmailService {
     });
   }
 
+  async sendUnarchiveNotification(
+    payload: AccountUnarchiveEmailPayload,
+    role: ArchivedAccountRole = 'instructor'
+  ): Promise<AccountEmailResult> {
+    const content = buildUnarchiveEmail(role, environment.accountEmail?.appUrl);
+
+    return this.sendNotification({
+      toEmail: payload.toEmail,
+      recipientName: payload.recipientName,
+      subject: content.subject,
+      message: content.message,
+      accountRole: role,
+      includeReasonLine: false
+    });
+  }
+
   async sendApprovalNotification(payload: AccountStatusEmailPayload): Promise<AccountEmailResult> {
     return this.sendNotification(payload);
   }
@@ -216,8 +240,9 @@ export class AccountEmailService {
     const subject = payload.subject.trim();
     const recipientName = payload.recipientName.trim() || 'User';
     const accountRole = payload.accountRole ?? 'instructor';
-
-    const reason = payload.reason?.trim() ?? '';
+    const trimmedReason = payload.reason?.trim() ?? '';
+    const includeReasonLine =
+      payload.includeReasonLine ?? trimmedReason.length > 0;
 
     const templateParams: Record<string, string> = {
       to_email: normalizedEmail,
@@ -225,15 +250,20 @@ export class AccountEmailService {
       email: normalizedEmail,
       user_name: recipientName,
       to_name: recipientName,
-      reason,
       subject,
       message,
       account_role: accountRole,
+      reason_section: '',
       time: new Date().toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short'
       })
     };
+
+    if (includeReasonLine && trimmedReason) {
+      templateParams['reason'] = trimmedReason;
+      templateParams['reason_section'] = `Reason: ${trimmedReason}`;
+    }
 
     try {
       this.ensureEmailJsInit(emailjsConfig.publicKey);

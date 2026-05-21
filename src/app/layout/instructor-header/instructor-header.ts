@@ -2,11 +2,12 @@ import { Component, Input, Output, EventEmitter, HostListener, inject } from '@a
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { NotificationRole, NotificationService } from '../../core/data/notification.service';
+import { NotificationPanelComponent } from '../notification-panel/notification-panel';
 
 @Component({
   selector: 'app-instructor-header',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, NotificationPanelComponent],
   templateUrl: './instructor-header.html',
   styleUrls: ['./instructor-header.scss'],
 })
@@ -15,7 +16,7 @@ export class InstructorHeaderComponent {
   private readonly themeStorageKey = 'attendease-theme';
   private readonly router = inject(Router);
   readonly notificationService = inject(NotificationService);
-  private readonly notificationRole = this.resolveNotificationRole();
+  readonly notificationRole = this.resolveNotificationRole();
 
   @Input() pageTitle: string = 'Overview';
   @Input() userName: string = '';
@@ -68,11 +69,6 @@ export class InstructorHeaderComponent {
     document.body.classList.toggle('dark-mode', this.isDarkMode);
     localStorage.setItem(this.themeStorageKey, this.isDarkMode ? 'dark' : 'light');
     this.profileMenuOpen = false;
-  }
-
-  markAllNotificationsAsRead(event: Event): void {
-    event.stopPropagation();
-    this.notificationService.markAllAsRead(this.notificationRole);
   }
 
   private resolveNotificationRole(): NotificationRole {

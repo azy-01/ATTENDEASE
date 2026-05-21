@@ -3,6 +3,18 @@ import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
 import { StudentApiService, type AuthAccount, type InstructorClass, type InstructorStudent } from '../../../core/data/student-api.service';
 import { NotificationService } from '../../../core/data/notification.service';
+import {
+  CLASS_FORM_STEPS,
+  DEFAULT_PROGRAMS,
+  DEFAULT_YEAR_LEVELS,
+  PROGRAM_OTHER_VALUE,
+  WEEKDAY_OPTIONS,
+  distinctSorted,
+  formatStudentLabel,
+  formatWeekdayLabel,
+  isTimeRangeValid,
+  type ClassFormStep,
+} from './class-form.utils';
 
 @Component({
   selector: 'app-classes',
@@ -10,9 +22,6 @@ import { NotificationService } from '../../../core/data/notification.service';
   imports: [CommonModule],
   template: `
     <div class="page">
-      <div class="top">
-        <button type="button" *ngIf="isAdmin" (click)="openAddModal()">+ Add Class</button>
-      </div>
       <div class="cards">
         <article class="class-card" *ngFor="let classItem of classes()">
           <div class="head">
@@ -58,132 +67,297 @@ import { NotificationService } from '../../../core/data/notification.service';
       </div>
 
       <div class="modal-backdrop" *ngIf="isModalOpen" (click)="closeModal()">
-        <div class="modal-card" role="dialog" aria-modal="true" aria-label="Class form modal" (click)="$event.stopPropagation()">
+        <div
+          class="modal-card class-form-modal"
+          role="dialog"
+          aria-modal="true"
+          [attr.aria-label]="isEditMode ? 'Edit class' : 'Add class'"
+          (click)="$event.stopPropagation()"
+        >
           <div class="modal-head">
-            <h3>{{ isEditMode ? 'Edit Class' : 'Add Class' }}</h3>
+            <div class="modal-head-text">
+              <h3>{{ isEditMode ? 'Edit Class' : 'Add Class' }}</h3>
+              <p class="modal-subtitle" *ngIf="classDraft.name.trim()">{{ classDraft.name }}</p>
+            </div>
             <button type="button" class="icon-close" (click)="closeModal()" aria-label="Close class modal">×</button>
           </div>
 
+          <nav class="step-progress" aria-label="Form progress">
+            <button
+              type="button"
+              class="step-pill"
+              *ngFor="let step of formSteps"
+              [class.active]="formStep === step.num"
+              [class.done]="formStep > step.num"
+              [attr.aria-current]="formStep === step.num ? 'step' : null"
+              [disabled]="!canNavigateToStep(step.num)"
+              (click)="goToStep(step.num)"
+            >
+              <span class="step-num">{{ step.num }}</span>
+              <span class="step-label">{{ step.label }}</span>
+            </button>
+          </nav>
+
           <div class="modal-body">
-            <label>
-              <span>Class Name</span>
-              <input type="text" [value]="classDraft.name" (input)="onDraftFieldChange('name', $event)" placeholder="BSIT1A" />
-            </label>
-            <label>
-              <span>Program</span>
-              <input type="text" [value]="classDraft.program" (input)="onDraftFieldChange('program', $event)" placeholder="Information Technology" />
-            </label>
-            <label>
-              <span>Year Level</span>
-              <input type="text" [value]="classDraft.yearLevel" (input)="onDraftFieldChange('yearLevel', $event)" placeholder="1st Year" />
-            </label>
-            <label>
-              <span>Status</span>
-              <select [value]="classDraft.status" (change)="onStatusChange($event)">
-                <option value="active">active</option>
-                <option value="inactive">inactive</option>
-              </select>
-            </label>
-            <label>
-              <span>Class Day</span>
-              <select [value]="classDraft.day || ''" (change)="onDayChange($event)">
-                <option value="">Select day</option>
-                <option *ngFor="let day of weekdays" [value]="day">{{ day }}</option>
-              </select>
-            </label>
-            <label>
-              <span>Class Time</span>
-              <div class="time-range">
-                <input type="time" [value]="startTimeValue" (input)="onStartTimeChange($event)" />
-                <span class="time-separator">-</span>
-                <input type="time" [value]="endTimeValue" (input)="onEndTimeChange($event)" />
-              </div>
-            </label>
-            <label>
-              <span>Class Mode</span>
-              <select [value]="classDraft.classMode || ''" (change)="onClassModeChange($event)">
-                <option value="">Select class mode</option>
-                <option value="Face-to-face Class">Face-to-face Class</option>
-                <option value="Online Class">Online Class</option>
-              </select>
-            </label>
-            <label>
-              <span>Room</span>
-              <input type="text" [value]="classDraft.room || ''" (input)="onDraftFieldChange('room', $event)" placeholder="Room 201 / Google Meet" />
-            </label>
-            <div class="student-picker" *ngIf="isAdmin">
-              <span>Assign Instructors</span>
-              <div class="picker-list" *ngIf="instructors().length; else noInstructors">
-                <label class="student-option" *ngFor="let instructor of instructors()">
+            <!-- Step 1: Class details -->
+            <div class="form-step" *ngIf="formStep === 1">
+              <h4 class="form-section-title">Class details</h4>
+              <p class="form-section-hint">Basic information about this class.</p>
+              <div class="form-grid">
+                <label class="field-full">
+                  <span>Class Name <em class="required">*</em></span>
                   <input
-                    type="checkbox"
-                    [checked]="isInstructorAssigned(instructor.id)"
-                    (change)="toggleInstructorAssignment(instructor.id, $event)"
+                    type="text"
+                    [value]="classDraft.name"
+                    (input)="onDraftFieldChange('name', $event)"
+                    placeholder="e.g. BSIT1A"
+                    [attr.aria-invalid]="fieldErrors['name'] ? true : null"
                   />
-                  <span>{{ instructor.fullName }} ({{ instructor.email }})</span>
+                  <span class="field-error" *ngIf="fieldErrors['name']">{{ fieldErrors['name'] }}</span>
+                </label>
+                <label>
+                  <span>Program <em class="required">*</em></span>
+                  <select [value]="programSelectValue" (change)="onProgramSelectChange($event)">
+                    <option value="">Select program</option>
+                    <option *ngFor="let program of programPresets" [value]="program">{{ program }}</option>
+                    <option [value]="programOtherValue">Other (type custom)</option>
+                  </select>
+                  <span class="field-error" *ngIf="fieldErrors['program'] && !showProgramOther">{{ fieldErrors['program'] }}</span>
+                </label>
+                <label *ngIf="showProgramOther" class="field-full">
+                  <span>Custom program <em class="required">*</em></span>
+                  <input
+                    type="text"
+                    [value]="classDraft.program"
+                    (input)="onDraftFieldChange('program', $event)"
+                    placeholder="Enter program name"
+                    [attr.aria-invalid]="fieldErrors['program'] ? true : null"
+                  />
+                </label>
+                <label [class.field-full]="!showProgramOther">
+                  <span>Year Level <em class="required">*</em></span>
+                  <select [value]="classDraft.yearLevel" (change)="onYearLevelChange($event)">
+                    <option value="">Select year level</option>
+                    <option *ngFor="let level of yearLevelPresets" [value]="level">{{ level }}</option>
+                  </select>
+                  <span class="field-error" *ngIf="fieldErrors['yearLevel']">{{ fieldErrors['yearLevel'] }}</span>
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select [value]="classDraft.status" (change)="onStatusChange($event)">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
                 </label>
               </div>
-              <ng-template #noInstructors>
-                <p class="empty-students">No instructors available.</p>
-              </ng-template>
             </div>
-            <div class="student-picker" *ngIf="isAdmin">
-              <span>Assign Subjects</span>
-              <label>
-                <span>Assign Subject</span>
-                <input
-                  type="text"
-                  [value]="assignedSubjectsInput"
-                  (input)="onSubjectInputChange($event)"
-                  placeholder="Programming, Database Management"
-                />
-              </label>
-            </div>
-            <div class="student-picker">
-              <span>Assign Students</span>
-              <label>
-                <span>Section</span>
-                <input
-                  type="text"
-                  [value]="selectedSection"
-                  (input)="onSectionChange($event)"
-                  placeholder="Type section to auto-filter students"
-                />
-              </label>
-              <label class="student-option select-all-toggle" *ngIf="filteredStudents().length">
-                <input
-                  type="checkbox"
-                  [checked]="areAllVisibleStudentsAssigned()"
-                  [indeterminate]="isSomeVisibleStudentAssigned() && !areAllVisibleStudentsAssigned()"
-                  (change)="toggleAllVisibleStudents($event)"
-                />
-                <span>Select All</span>
-              </label>
-              <div class="picker-list" *ngIf="students().length; else noStudents">
-                <label class="student-option" *ngFor="let student of filteredStudents()">
+
+            <!-- Step 2: Schedule -->
+            <div class="form-step" *ngIf="formStep === 2">
+              <h4 class="form-section-title">Schedule &amp; location</h4>
+              <p class="form-section-hint">When and where this class meets.</p>
+              <div class="form-grid">
+                <label>
+                  <span>Class Day <em class="required">*</em></span>
+                  <select [value]="classDraft.day || ''" (change)="onDayChange($event)">
+                    <option value="">Select day</option>
+                    <option *ngFor="let day of weekdayOptions" [value]="day.value">{{ day.label }}</option>
+                  </select>
+                  <span class="field-error" *ngIf="fieldErrors['day']">{{ fieldErrors['day'] }}</span>
+                </label>
+                <label>
+                  <span>Class Mode <em class="required">*</em></span>
+                  <select [value]="classDraft.classMode || ''" (change)="onClassModeChange($event)">
+                    <option value="">Select class mode</option>
+                    <option value="Face-to-face Class">Face-to-face</option>
+                    <option value="Online Class">Online</option>
+                  </select>
+                  <span class="field-error" *ngIf="fieldErrors['classMode']">{{ fieldErrors['classMode'] }}</span>
+                </label>
+                <label class="field-full">
+                  <span>Class Time <em class="required">*</em></span>
+                  <div class="time-range">
+                    <input type="time" [value]="startTimeValue" (input)="onStartTimeChange($event)" aria-label="Start time" />
+                    <span class="time-separator">to</span>
+                    <input type="time" [value]="endTimeValue" (input)="onEndTimeChange($event)" aria-label="End time" />
+                  </div>
+                  <span class="field-error" *ngIf="fieldErrors['time']">{{ fieldErrors['time'] }}</span>
+                </label>
+                <label class="field-full">
+                  <span>{{ roomFieldLabel }}</span>
                   <input
-                    type="checkbox"
-                    [checked]="isStudentAssigned(student.id)"
-                    (change)="toggleStudentAssignment(student.id, $event)"
+                    type="text"
+                    [value]="classDraft.room || ''"
+                    (input)="onDraftFieldChange('room', $event)"
+                    [placeholder]="roomFieldPlaceholder"
                   />
-                  <span>{{ student.name }} ({{ student.studentId }})</span>
+                  <span class="field-hint" *ngIf="isOnlineClassMode">Paste your Google Meet or other meeting link.</span>
                 </label>
               </div>
-              <ng-template #noStudents>
-                <p class="empty-students">No students available. Add students first.</p>
-              </ng-template>
-              <p class="empty-students" *ngIf="students().length && selectedSection && !filteredStudents().length">
-                No students found in this section.
-              </p>
+            </div>
+
+            <!-- Step 3: Assignments -->
+            <div class="form-step" *ngIf="formStep === 3">
+              <h4 class="form-section-title">Assignments</h4>
+              <p class="form-section-hint">Optional — assign instructors, subjects, and students.</p>
+
+              <div class="assignment-block" *ngIf="isAdmin">
+                <div class="assignment-head">
+                  <span>Instructors</span>
+                  <span class="assignment-count">{{ assignedInstructorCount }} selected</span>
+                </div>
+                <input
+                  type="search"
+                  class="search-input"
+                  [value]="instructorSearchQuery"
+                  (input)="onInstructorSearchChange($event)"
+                  placeholder="Search by name or email"
+                  aria-label="Search instructors"
+                />
+                <div class="picker-list" *ngIf="filteredInstructors().length; else noInstructors">
+                  <label class="student-option" *ngFor="let instructor of filteredInstructors()">
+                    <input
+                      type="checkbox"
+                      [checked]="isInstructorAssigned(instructor.id)"
+                      (change)="toggleInstructorAssignment(instructor.id, $event)"
+                    />
+                    <span class="option-text">
+                      <span class="option-main">{{ instructor.fullName }}</span>
+                      <span class="option-sub">{{ instructor.email }}</span>
+                    </span>
+                  </label>
+                </div>
+                <ng-template #noInstructors>
+                  <p class="empty-students">{{ instructors().length ? 'No instructors match your search.' : 'No instructors available.' }}</p>
+                </ng-template>
+              </div>
+
+              <div class="assignment-block" *ngIf="isAdmin">
+                <div class="assignment-head">
+                  <span>Subjects</span>
+                  <span class="assignment-count">{{ (classDraft.assignedSubjects ?? []).length }} added</span>
+                </div>
+                <div class="subject-chips" *ngIf="(classDraft.assignedSubjects ?? []).length">
+                  <span class="chip" *ngFor="let subject of classDraft.assignedSubjects">
+                    {{ subject }}
+                    <button type="button" class="chip-remove" (click)="removeSubject(subject)" [attr.aria-label]="'Remove ' + subject">×</button>
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  class="subject-input"
+                  [value]="subjectInputDraft"
+                  (input)="onSubjectDraftInput($event)"
+                  (keydown)="onSubjectDraftKeydown($event)"
+                  placeholder="Type a subject and press Enter"
+                  aria-label="Add subject"
+                />
+                <span class="field-hint">Press Enter after each subject to add it.</span>
+              </div>
+
+              <div class="assignment-block">
+                <div class="assignment-head">
+                  <span>Students</span>
+                  <span class="assignment-count">{{ assignedStudentCount }} selected</span>
+                </div>
+                <label>
+                  <span>Section <em class="required">*</em></span>
+                  <select [value]="selectedSection" (change)="onSectionSelectChange($event)">
+                    <option value="">Select section</option>
+                    <option *ngFor="let section of availableSections" [value]="section">{{ section }}</option>
+                  </select>
+                  <span class="field-hint">Choose a section to see and assign students.</span>
+                  <span class="field-error" *ngIf="fieldErrors['section']">{{ fieldErrors['section'] }}</span>
+                </label>
+                <ng-container *ngIf="selectedSection">
+                  <input
+                    type="search"
+                    class="search-input"
+                    [value]="studentSearchQuery"
+                    (input)="onStudentSearchChange($event)"
+                    placeholder="Search students in this section"
+                    aria-label="Search students"
+                  />
+                  <label class="student-option select-all-toggle" *ngIf="filteredStudents().length">
+                    <input
+                      type="checkbox"
+                      [checked]="areAllVisibleStudentsAssigned()"
+                      [indeterminate]="isSomeVisibleStudentAssigned() && !areAllVisibleStudentsAssigned()"
+                      (change)="toggleAllVisibleStudents($event)"
+                    />
+                    <span>Select all in {{ selectedSection }} ({{ filteredStudents().length }})</span>
+                  </label>
+                  <div class="picker-list picker-list-tall" *ngIf="filteredStudents().length; else noSectionStudents">
+                    <label class="student-option" *ngFor="let student of filteredStudents()">
+                      <input
+                        type="checkbox"
+                        [checked]="isStudentAssigned(student.id)"
+                        (change)="toggleStudentAssignment(student.id, $event)"
+                      />
+                      <span>{{ formatStudentDisplay(student) }}</span>
+                    </label>
+                  </div>
+                  <ng-template #noSectionStudents>
+                    <p class="empty-students">{{ students().length ? 'No students match your search in this section.' : 'No students available. Add students first.' }}</p>
+                  </ng-template>
+                </ng-container>
+                <p class="empty-students" *ngIf="!selectedSection && students().length">Select a section above to assign students.</p>
+                <p class="empty-students" *ngIf="!students().length">No students available. Add students first.</p>
+              </div>
+            </div>
+
+            <!-- Step 4: Review -->
+            <div class="form-step" *ngIf="formStep === 4">
+              <h4 class="form-section-title">Review &amp; confirm</h4>
+              <p class="form-section-hint">Check everything before saving.</p>
+              <div class="review-grid">
+                <section class="summary-card">
+                  <h5>Class details</h5>
+                  <dl>
+                    <div><dt>Name</dt><dd>{{ classDraft.name || '—' }}</dd></div>
+                    <div><dt>Program</dt><dd>{{ classDraft.program || '—' }}</dd></div>
+                    <div><dt>Year level</dt><dd>{{ classDraft.yearLevel || '—' }}</dd></div>
+                    <div><dt>Status</dt><dd>{{ classDraft.status === 'inactive' ? 'Inactive' : 'Active' }}</dd></div>
+                  </dl>
+                </section>
+                <section class="summary-card">
+                  <h5>Schedule</h5>
+                  <dl>
+                    <div><dt>Day</dt><dd>{{ formatDayLabel(classDraft.day) }}</dd></div>
+                    <div><dt>Time</dt><dd>{{ buildClassTimeRange() || '—' }}</dd></div>
+                    <div><dt>Mode</dt><dd>{{ classDraft.classMode || '—' }}</dd></div>
+                    <div><dt>{{ roomFieldLabel }}</dt><dd>{{ classDraft.room || '—' }}</dd></div>
+                  </dl>
+                </section>
+                <section class="summary-card summary-card-wide" *ngIf="isAdmin">
+                  <h5>Assignments</h5>
+                  <dl>
+                    <div><dt>Instructors</dt><dd>{{ reviewInstructorNames }}</dd></div>
+                    <div><dt>Subjects</dt><dd>{{ reviewSubjectList }}</dd></div>
+                    <div><dt>Students</dt><dd>{{ assignedStudentCount }} assigned{{ selectedSection ? ' from ' + selectedSection : '' }}</dd></div>
+                  </dl>
+                </section>
+                <section class="summary-card summary-card-wide" *ngIf="!isAdmin">
+                  <h5>Students</h5>
+                  <dl>
+                    <div><dt>Assigned</dt><dd>{{ assignedStudentCount }} student(s){{ selectedSection ? ' from ' + selectedSection : '' }}</dd></div>
+                  </dl>
+                </section>
+              </div>
             </div>
           </div>
-          <p class="form-error" *ngIf="formError">{{ formError }}</p>
 
-          <div class="modal-actions">
+          <p class="form-error" *ngIf="formError" role="alert">{{ formError }}</p>
+
+          <div class="modal-actions sticky-actions">
             <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
-            <button type="button" class="btn-primary" (click)="saveClass()">
-              {{ isEditMode ? 'Save Changes' : 'Add Class' }}
-            </button>
+            <div class="action-group">
+              <button type="button" class="btn-ghost" *ngIf="formStep > 1" (click)="prevStep()">Back</button>
+              <button type="button" class="btn-primary" *ngIf="formStep < 4" (click)="nextStep()">Next</button>
+              <button type="button" class="btn-primary" *ngIf="formStep === 4" (click)="saveClass()">
+                {{ isEditMode ? 'Save Changes' : 'Add Class' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -207,14 +381,98 @@ import { NotificationService } from '../../../core/data/notification.service';
           </div>
         </div>
       </div>
+
+      <button
+        type="button"
+        class="fab-add-class"
+        *ngIf="isAdmin"
+        (click)="openAddModal()"
+        aria-label="Add class"
+      >
+        <span class="fab-icon-wrap" aria-hidden="true">
+          <span class="material-icons fab-icon">add</span>
+        </span>
+        <span class="fab-label">Add Class</span>
+      </button>
     </div>
   `,
   styles: [`
-    .page { display: flex; flex-direction: column; gap: 16px; }
-    .top { display: flex; justify-content: flex-end; }
-    .top button {
-      border: none; border-radius: 9px; padding: 10px 14px; background: #4f46e5;
-      color: #fff; font-weight: 600; cursor: pointer;
+    .page { display: flex; flex-direction: column; gap: 16px; padding-bottom: 80px; }
+    .fab-add-class {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      background: #4f46e5;
+      color: #fff;
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      cursor: pointer;
+      box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.06),
+        0 4px 14px rgba(79, 70, 229, 0.2);
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .fab-add-class:hover {
+      background: #4338ca;
+      border-color: rgba(255, 255, 255, 0.16);
+      transform: translateY(-2px);
+      box-shadow:
+        0 2px 4px rgba(15, 23, 42, 0.08),
+        0 8px 22px rgba(79, 70, 229, 0.26);
+    }
+    .fab-add-class:active {
+      transform: translateY(0) scale(0.98);
+      background: #4338ca;
+      box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.06),
+        0 2px 8px rgba(79, 70, 229, 0.18);
+    }
+    .fab-add-class:focus-visible {
+      outline: 2px solid #a5b4fc;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+    .fab-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.14);
+      flex-shrink: 0;
+    }
+    .fab-icon {
+      font-size: 18px;
+      line-height: 1;
+      color: #fff;
+    }
+    .fab-label {
+      padding-right: 2px;
+      white-space: nowrap;
+    }
+    @media (max-width: 680px) {
+      .fab-add-class {
+        bottom: 20px;
+        right: 20px;
+        padding: 9px 16px 9px 11px;
+        gap: 8px;
+        font-size: 0.8125rem;
+      }
+      .fab-icon-wrap {
+        width: 26px;
+        height: 26px;
+      }
+      .fab-icon { font-size: 17px; }
     }
     .cards {
       min-height: 240px;
@@ -288,14 +546,69 @@ import { NotificationService } from '../../../core/data/notification.service';
       flex-direction: column;
       overflow: hidden;
     }
+    .class-form-modal { width: min(720px, 100%); }
     .modal-head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
+      gap: 12px;
       padding: 14px 16px;
       border-bottom: 1px solid #f0f2f6;
+      flex-shrink: 0;
     }
+    .modal-head-text { min-width: 0; }
     .modal-head h3 { margin: 0; font-size: 16px; color: #111827; }
+    .modal-subtitle { margin: 4px 0 0; font-size: 12px; color: #6b7280; font-weight: 500; }
+    .step-progress {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #f0f2f6;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+    .step-pill {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      background: #f9fafb;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .step-pill:disabled { cursor: default; opacity: 0.55; }
+    .step-pill.active {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #4338ca;
+    }
+    .step-pill.done:not(:disabled) {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #15803d;
+    }
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.06);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .step-pill.active .step-num { background: #4f46e5; color: #fff; }
+    .step-pill.done .step-num { background: #16a34a; color: #fff; }
+    .step-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .icon-close {
       width: 30px;
       height: 30px;
@@ -308,16 +621,26 @@ import { NotificationService } from '../../../core/data/notification.service';
       line-height: 1;
     }
     .modal-body {
-      padding: 14px 16px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      padding: 16px;
       overflow-y: auto;
       overflow-x: hidden;
       min-width: 0;
+      flex: 1;
     }
+    .form-step { display: flex; flex-direction: column; gap: 12px; }
+    .form-section-title { margin: 0; font-size: 15px; color: #111827; font-weight: 700; }
+    .form-section-hint { margin: 0; font-size: 12px; color: #9ca3af; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .field-full { grid-column: 1 / -1; }
     .modal-body label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
     .modal-body label span { font-size: 12px; color: #6b7280; font-weight: 600; }
+    .required { font-style: normal; color: #dc2626; font-weight: 700; }
+    .field-error { font-size: 11px; color: #dc2626; font-weight: 600; }
+    .field-hint { font-size: 11px; color: #9ca3af; font-weight: 500; }
     .modal-body input,
     .modal-body select {
       height: 38px;
@@ -342,25 +665,71 @@ import { NotificationService } from '../../../core/data/notification.service';
       color: #6b7280;
       font-weight: 600;
     }
-    .student-picker {
-      grid-column: 1 / -1;
+    .assignment-block {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid #edf0f5;
+      border-radius: 10px;
+      background: #fafbfc;
     }
-    .student-picker > span { font-size: 12px; color: #6b7280; font-weight: 600; }
+    .assignment-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .assignment-head > span:first-child { font-size: 13px; color: #374151; font-weight: 700; }
+    .assignment-count { font-size: 11px; color: #6b7280; font-weight: 600; }
+    .search-input,
+    .subject-input {
+      height: 38px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #111827;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+    .subject-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px 4px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #4338ca;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .chip-remove {
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(67, 56, 202, 0.15);
+      color: #4338ca;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
     .picker-list {
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       padding: 8px 10px;
-      max-height: 160px;
+      max-height: 200px;
       overflow-y: auto;
       overflow-x: hidden;
       display: flex;
       flex-direction: column;
       gap: 6px;
       min-width: 0;
+      background: #fff;
     }
+    .picker-list-tall { max-height: 240px; }
     .student-option {
       display: flex !important;
       flex-direction: row !important;
@@ -371,12 +740,47 @@ import { NotificationService } from '../../../core/data/notification.service';
       color: #374151;
       min-width: 0;
     }
-    .student-option span {
+    .student-option .option-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+    }
+    .student-option .option-main {
+      font-size: 13px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+    .student-option .option-sub {
+      font-size: 11px;
+      color: #9ca3af;
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+    .student-option span:not(.option-main):not(.option-sub) {
       min-width: 0;
       overflow-wrap: anywhere;
       word-break: break-word;
       line-height: 1.2;
     }
+    .review-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .summary-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+      background: #fafbfc;
+    }
+    .summary-card-wide { grid-column: 1 / -1; }
+    .summary-card h5 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; }
+    .summary-card dl { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .summary-card dl > div { display: grid; grid-template-columns: 100px 1fr; gap: 8px; font-size: 13px; }
+    .summary-card dt { margin: 0; color: #9ca3af; font-weight: 600; }
+    .summary-card dd { margin: 0; color: #111827; font-weight: 500; overflow-wrap: anywhere; }
     .student-option input {
       width: 15px;
       height: 15px;
@@ -397,12 +801,17 @@ import { NotificationService } from '../../../core/data/notification.service';
     }
     .modal-actions {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       gap: 8px;
       padding: 14px 16px;
       border-top: 1px solid #f0f2f6;
       flex-wrap: wrap;
+      flex-shrink: 0;
+      background: #fff;
     }
+    .sticky-actions { position: sticky; bottom: 0; z-index: 1; }
+    .action-group { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
     .btn-ghost,
     .btn-primary {
       height: 36px;
@@ -436,10 +845,13 @@ import { NotificationService } from '../../../core/data/notification.service';
       margin-bottom: 6px;
     }
     @media (max-width: 680px) {
-      .modal-body { grid-template-columns: 1fr; }
+      .form-grid, .review-grid { grid-template-columns: 1fr; }
       .time-range { grid-template-columns: 1fr 14px 1fr; gap: 6px; }
-      .modal-actions { justify-content: stretch; }
-      .btn-ghost, .btn-primary { flex: 1; }
+      .modal-actions { flex-direction: column; align-items: stretch; }
+      .action-group { margin-left: 0; width: 100%; }
+      .action-group .btn-ghost, .action-group .btn-primary { flex: 1; }
+      .step-label { display: none; }
+      .step-pill { padding: 8px; }
     }
     :host-context(body.dark-mode) .class-card,
     .dark-mode .class-card {
@@ -486,6 +898,45 @@ import { NotificationService } from '../../../core/data/notification.service';
       border-color: #374151;
       color: #cbd5e1;
     }
+    :host-context(body.dark-mode) .modal-subtitle,
+    .dark-mode .modal-subtitle { color: #94a3b8; }
+    :host-context(body.dark-mode) .step-progress,
+    .dark-mode .step-progress { border-color: #1f2937; }
+    :host-context(body.dark-mode) .step-pill,
+    .dark-mode .step-pill {
+      background: #0f172a;
+      border-color: #374151;
+      color: #94a3b8;
+    }
+    :host-context(body.dark-mode) .step-pill.active,
+    .dark-mode .step-pill.active {
+      background: #1e1b4b;
+      border-color: #4338ca;
+      color: #c7d2fe;
+    }
+    :host-context(body.dark-mode) .form-section-title,
+    .dark-mode .form-section-title { color: #e5e7eb; }
+    :host-context(body.dark-mode) .assignment-block,
+    :host-context(body.dark-mode) .summary-card,
+    .dark-mode .assignment-block,
+    .dark-mode .summary-card {
+      background: #0f172a;
+      border-color: #374151;
+    }
+    :host-context(body.dark-mode) .search-input,
+    :host-context(body.dark-mode) .subject-input,
+    .dark-mode .search-input,
+    .dark-mode .subject-input {
+      background: #111827;
+      border-color: #374151;
+      color: #e5e7eb;
+    }
+    :host-context(body.dark-mode) .chip,
+    .dark-mode .chip { background: #1e1b4b; color: #c7d2fe; }
+    :host-context(body.dark-mode) .summary-card dd,
+    .dark-mode .summary-card dd { color: #e5e7eb; }
+    :host-context(body.dark-mode) .sticky-actions,
+    .dark-mode .sticky-actions { background: #111827; }
     :host-context(body.dark-mode) .modal-body label span,
     .dark-mode .modal-body label span { color: #94a3b8; }
     :host-context(body.dark-mode) .modal-body input,
@@ -509,12 +960,34 @@ import { NotificationService } from '../../../core/data/notification.service';
     .dark-mode .form-error { color: #fca5a5; }
     :host-context(body.dark-mode) .view-students-body li,
     .dark-mode .view-students-body li { color: #cbd5e1; }
+    :host-context(body.dark-mode) .fab-add-class,
+    .dark-mode .fab-add-class {
+      background: #4f46e5;
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.2),
+        0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+    :host-context(body.dark-mode) .fab-add-class:hover,
+    .dark-mode .fab-add-class:hover {
+      background: #4338ca;
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.25),
+        0 8px 22px rgba(0, 0, 0, 0.42);
+    }
+    :host-context(body.dark-mode) .fab-icon-wrap,
+    .dark-mode .fab-icon-wrap {
+      background: rgba(255, 255, 255, 0.12);
+    }
   `],
 })
 export class ClassesComponent {
   private readonly authSessionStorageKey = 'attendease-auth-session';
   readonly classes = signal<InstructorClass[]>([]);
-  readonly weekdays: string[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  readonly weekdayOptions = WEEKDAY_OPTIONS;
+  readonly formSteps = CLASS_FORM_STEPS;
+  readonly programOtherValue = PROGRAM_OTHER_VALUE;
   readonly students = signal<InstructorStudent[]>([]);
   readonly instructors = signal<AuthAccount[]>([]);
   isAdmin = false;
@@ -523,8 +996,15 @@ export class ClassesComponent {
   isModalOpen = false;
   isEditMode = false;
   editingClassId = '';
+  formStep: ClassFormStep = 1;
   formError = '';
+  fieldErrors: Record<string, string> = {};
   selectedSection = '';
+  programSelectValue = '';
+  showProgramOther = false;
+  instructorSearchQuery = '';
+  studentSearchQuery = '';
+  subjectInputDraft = '';
   isStudentsViewOpen = false;
   viewingClassName = '';
   viewingStudents: InstructorStudent[] = [];
@@ -561,7 +1041,12 @@ export class ClassesComponent {
     this.isEditMode = false;
     this.isModalOpen = true;
     this.editingClassId = '';
+    this.formStep = 1;
     this.formError = '';
+    this.fieldErrors = {};
+    this.instructorSearchQuery = '';
+    this.studentSearchQuery = '';
+    this.subjectInputDraft = '';
     this.classDraft = {
       id: '',
       name: '',
@@ -581,13 +1066,19 @@ export class ClassesComponent {
     this.selectedSection = '';
     this.startTimeValue = '08:00';
     this.endTimeValue = '09:00';
+    this.syncProgramSelect();
   }
 
   editClass(classItem: InstructorClass): void {
     this.isEditMode = true;
     this.isModalOpen = true;
     this.editingClassId = classItem.id;
+    this.formStep = 1;
     this.formError = '';
+    this.fieldErrors = {};
+    this.instructorSearchQuery = '';
+    this.studentSearchQuery = '';
+    this.subjectInputDraft = '';
     this.classDraft = {
       ...classItem,
       assignedStudentIds: [...(classItem.assignedStudentIds ?? [])],
@@ -596,13 +1087,221 @@ export class ClassesComponent {
     };
     this.selectedSection = classItem.section ?? '';
     this.applyTimeDraftFromClassTime(classItem.time ?? '');
+    this.syncProgramSelect();
   }
 
   closeModal(): void {
     this.isModalOpen = false;
     this.isEditMode = false;
     this.editingClassId = '';
+    this.formStep = 1;
     this.formError = '';
+    this.fieldErrors = {};
+    this.instructorSearchQuery = '';
+    this.studentSearchQuery = '';
+    this.subjectInputDraft = '';
+  }
+
+  get programPresets(): string[] {
+    return distinctSorted([
+      ...DEFAULT_PROGRAMS,
+      ...this.classes().map((classItem) => classItem.program),
+    ]);
+  }
+
+  get yearLevelPresets(): string[] {
+    return distinctSorted([
+      ...DEFAULT_YEAR_LEVELS,
+      ...this.classes().map((classItem) => classItem.yearLevel),
+    ]);
+  }
+
+  get availableSections(): string[] {
+    return distinctSorted(this.students().map((student) => student.section ?? ''));
+  }
+
+  get isOnlineClassMode(): boolean {
+    return this.classDraft.classMode === 'Online Class';
+  }
+
+  get roomFieldLabel(): string {
+    return this.isOnlineClassMode ? 'Meeting link' : 'Room';
+  }
+
+  get roomFieldPlaceholder(): string {
+    return this.isOnlineClassMode ? 'https://meet.google.com/...' : 'Room 201';
+  }
+
+  get assignedInstructorCount(): number {
+    return (this.classDraft.assignedInstructorIds ?? []).length;
+  }
+
+  get assignedStudentCount(): number {
+    return (this.classDraft.assignedStudentIds ?? []).length;
+  }
+
+  get reviewInstructorNames(): string {
+    const assignedIds = this.classDraft.assignedInstructorIds ?? [];
+    if (!assignedIds.length) {
+      return 'None';
+    }
+    const names = this.instructors()
+      .filter((instructor) => assignedIds.includes(instructor.id))
+      .map((instructor) => instructor.fullName);
+    return names.length ? names.join(', ') : 'None';
+  }
+
+  get reviewSubjectList(): string {
+    const subjects = this.classDraft.assignedSubjects ?? [];
+    return subjects.length ? subjects.join(', ') : 'None';
+  }
+
+  formatStudentDisplay(student: InstructorStudent): string {
+    return formatStudentLabel(student.name, student.studentId ?? '');
+  }
+
+  formatDayLabel(day?: string): string {
+    return day?.trim() ? formatWeekdayLabel(day) : '—';
+  }
+
+  canNavigateToStep(step: ClassFormStep): boolean {
+    return step <= this.formStep;
+  }
+
+  goToStep(step: ClassFormStep): void {
+    if (step === this.formStep) {
+      return;
+    }
+    if (step < this.formStep) {
+      this.formStep = step;
+      this.formError = '';
+      this.fieldErrors = {};
+      return;
+    }
+    for (let current = this.formStep; current < step; current++) {
+      if (!this.validateStep(current as ClassFormStep)) {
+        this.formStep = current as ClassFormStep;
+        return;
+      }
+    }
+    this.formStep = step;
+    this.formError = '';
+    this.fieldErrors = {};
+  }
+
+  nextStep(): void {
+    if (!this.validateStep(this.formStep)) {
+      return;
+    }
+    if (this.formStep < 4) {
+      this.formStep = (this.formStep + 1) as ClassFormStep;
+      this.formError = '';
+      this.fieldErrors = {};
+    }
+  }
+
+  prevStep(): void {
+    if (this.formStep > 1) {
+      this.formStep = (this.formStep - 1) as ClassFormStep;
+      this.formError = '';
+      this.fieldErrors = {};
+    }
+  }
+
+  onProgramSelectChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    const value = target.value;
+    this.programSelectValue = value;
+    this.clearFieldError('program');
+    if (value === PROGRAM_OTHER_VALUE) {
+      this.showProgramOther = true;
+      if (this.programPresets.includes(this.classDraft.program.trim())) {
+        this.classDraft = { ...this.classDraft, program: '' };
+      }
+      return;
+    }
+    this.showProgramOther = false;
+    this.classDraft = {
+      ...this.classDraft,
+      program: value,
+    };
+  }
+
+  onYearLevelChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    this.classDraft = {
+      ...this.classDraft,
+      yearLevel: target.value,
+    };
+    this.clearFieldError('yearLevel');
+  }
+
+  onInstructorSearchChange(event: Event): void {
+    this.instructorSearchQuery = (event.target as HTMLInputElement).value;
+  }
+
+  onStudentSearchChange(event: Event): void {
+    this.studentSearchQuery = (event.target as HTMLInputElement).value;
+  }
+
+  onSectionSelectChange(event: Event): void {
+    const section = (event.target as HTMLSelectElement).value.trim();
+    this.selectedSection = section;
+    this.studentSearchQuery = '';
+    this.classDraft = {
+      ...this.classDraft,
+      section,
+    };
+    this.clearFieldError('section');
+  }
+
+  onSubjectDraftInput(event: Event): void {
+    this.subjectInputDraft = (event.target as HTMLInputElement).value;
+  }
+
+  onSubjectDraftKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    event.preventDefault();
+    this.addSubjectFromDraft();
+  }
+
+  addSubjectFromDraft(): void {
+    const value = this.subjectInputDraft.trim();
+    if (!value) {
+      return;
+    }
+    const current = [...(this.classDraft.assignedSubjects ?? [])];
+    if (!current.includes(value)) {
+      current.push(value);
+    }
+    this.classDraft = {
+      ...this.classDraft,
+      assignedSubjects: current,
+    };
+    this.subjectInputDraft = '';
+  }
+
+  removeSubject(subject: string): void {
+    const current = (this.classDraft.assignedSubjects ?? []).filter((item) => item !== subject);
+    this.classDraft = {
+      ...this.classDraft,
+      assignedSubjects: current,
+    };
+  }
+
+  filteredInstructors(): AuthAccount[] {
+    const query = this.instructorSearchQuery.trim().toLowerCase();
+    const allInstructors = this.instructors();
+    if (!query) {
+      return allInstructors;
+    }
+    return allInstructors.filter(
+      (instructor) =>
+        instructor.fullName.toLowerCase().includes(query) ||
+        instructor.email.toLowerCase().includes(query)
+    );
   }
 
   onDraftFieldChange(field: 'name' | 'program' | 'yearLevel' | 'room', event: Event): void {
@@ -611,6 +1310,7 @@ export class ClassesComponent {
       ...this.classDraft,
       [field]: target.value,
     };
+    this.clearFieldError(field);
   }
 
   onStatusChange(event: Event): void {
@@ -627,6 +1327,7 @@ export class ClassesComponent {
       ...this.classDraft,
       day: target.value.trim(),
     };
+    this.clearFieldError('day');
   }
 
   onClassModeChange(event: Event): void {
@@ -636,45 +1337,31 @@ export class ClassesComponent {
       ...this.classDraft,
       classMode: classMode === 'Face-to-face Class' || classMode === 'Online Class' ? classMode : undefined,
     };
+    this.clearFieldError('classMode');
   }
 
   onStartTimeChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.startTimeValue = target.value;
+    this.clearFieldError('time');
   }
 
   onEndTimeChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.endTimeValue = target.value;
-  }
-
-  onSectionChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    const section = target.value.trim();
-    this.selectedSection = section;
-    this.classDraft = {
-      ...this.classDraft,
-      section,
-    };
-  }
-
-  onSubjectInputChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    const assignedSubjects = target.value
-      .split(',')
-      .map((subject) => subject.trim())
-      .filter((subject) => Boolean(subject));
-    this.classDraft = {
-      ...this.classDraft,
-      assignedSubjects: [...new Set(assignedSubjects)],
-    };
-  }
-
-  get assignedSubjectsInput(): string {
-    return (this.classDraft.assignedSubjects ?? []).join(', ');
+    this.clearFieldError('time');
   }
 
   async saveClass(): Promise<void> {
+    if (!this.validateStep(1)) {
+      this.formStep = 1;
+      return;
+    }
+    if (!this.validateStep(2)) {
+      this.formStep = 2;
+      return;
+    }
+    this.formError = '';
     const assignedStudentIds = [...(this.classDraft.assignedStudentIds ?? [])];
     const assignedInstructorIds = [...(this.classDraft.assignedInstructorIds ?? [])];
     const assignedSubjects = [...(this.classDraft.assignedSubjects ?? [])];
@@ -821,14 +1508,22 @@ export class ClassesComponent {
   }
 
   filteredStudents(): InstructorStudent[] {
-    const allStudents = this.students();
     const normalizedSection = this.selectedSection.trim().toLowerCase();
     if (!normalizedSection) {
-      return allStudents;
+      return [];
     }
-    return allStudents.filter(
+    const query = this.studentSearchQuery.trim().toLowerCase();
+    let list = this.students().filter(
       (student) => (student.section ?? '').trim().toLowerCase() === normalizedSection
     );
+    if (query) {
+      list = list.filter(
+        (student) =>
+          student.name.toLowerCase().includes(query) ||
+          (student.studentId ?? '').toLowerCase().includes(query)
+      );
+    }
+    return list;
   }
 
   getAssignedInstructors(classItem: InstructorClass): AuthAccount[] {
@@ -1020,11 +1715,75 @@ export class ClassesComponent {
     }
   }
 
-  private buildClassTimeRange(): string {
+  buildClassTimeRange(): string {
     const start = this.formatWithPeriod(this.startTimeValue);
     const end = this.formatWithPeriod(this.endTimeValue);
     if (!start || !end) return '';
     return `${start} - ${end}`;
+  }
+
+  private validateStep(step: ClassFormStep): boolean {
+    const errors: Record<string, string> = {};
+
+    if (step === 1) {
+      if (!this.classDraft.name.trim()) {
+        errors['name'] = 'Class name is required.';
+      }
+      if (!this.classDraft.program.trim()) {
+        errors['program'] = 'Program is required.';
+      }
+      if (!this.classDraft.yearLevel.trim()) {
+        errors['yearLevel'] = 'Year level is required.';
+      }
+    }
+
+    if (step === 2) {
+      if (!(this.classDraft.day ?? '').trim()) {
+        errors['day'] = 'Class day is required.';
+      }
+      if (!this.classDraft.classMode) {
+        errors['classMode'] = 'Class mode is required.';
+      }
+      if (!isTimeRangeValid(this.startTimeValue, this.endTimeValue)) {
+        errors['time'] = 'End time must be after start time.';
+      }
+    }
+
+    this.fieldErrors = errors;
+    if (Object.keys(errors).length) {
+      this.formError = 'Please fix the highlighted fields before continuing.';
+      return false;
+    }
+    this.formError = '';
+    return true;
+  }
+
+  private syncProgramSelect(): void {
+    const program = this.classDraft.program.trim();
+    if (program && this.programPresets.includes(program)) {
+      this.programSelectValue = program;
+      this.showProgramOther = false;
+      return;
+    }
+    if (program) {
+      this.programSelectValue = PROGRAM_OTHER_VALUE;
+      this.showProgramOther = true;
+      return;
+    }
+    this.programSelectValue = '';
+    this.showProgramOther = false;
+  }
+
+  private clearFieldError(field: string): void {
+    if (!this.fieldErrors[field]) {
+      return;
+    }
+    const next = { ...this.fieldErrors };
+    delete next[field];
+    this.fieldErrors = next;
+    if (!Object.keys(this.fieldErrors).length) {
+      this.formError = '';
+    }
   }
 
   private applyTimeDraftFromClassTime(raw: string): void {

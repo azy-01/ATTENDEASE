@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
+import { AccountEmailService } from '../../../core/data/account-email.service';
 import {
   StudentApiService,
   type AuthAccount,
@@ -175,7 +176,10 @@ export class ArchivedInstructorAccountsComponent {
   readonly archivedAccounts = signal<AuthAccount[]>([]);
   readonly archivedClasses = signal<InstructorClass[]>([]);
 
-  constructor(private readonly api: StudentApiService) {
+  constructor(
+    private readonly api: StudentApiService,
+    private readonly accountEmail: AccountEmailService
+  ) {
     void this.loadArchives();
   }
 
@@ -193,13 +197,14 @@ export class ArchivedInstructorAccountsComponent {
   async unarchiveAccount(account: AuthAccount): Promise<void> {
     const result = await Swal.fire({
       title: 'Unarchive instructor account?',
-      html: `<p style="margin:0;color:#6b7280;font-size:13px;">
+      html: `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">
         <strong>${this.escapeHtml(account.fullName)}</strong> (${this.escapeHtml(account.email)})
-        will be able to sign in again. Re-assign classes from Instructor Accounts if needed.</p>`,
+        will be able to sign in again. A short restoration notice will be emailed to their Gmail—no reason is required.</p>
+      <p style="margin:0;color:#6b7280;font-size:13px;">Re-assign classes from Instructor Accounts if needed.</p>`,
       icon: 'question',
       customClass: { popup: 'swal-delete-popup' },
       showCancelButton: true,
-      confirmButtonText: 'Unarchive',
+      confirmButtonText: 'Unarchive & notify',
       cancelButtonText: 'Cancel',
       confirmButtonColor: '#16a34a',
       reverseButtons: true
@@ -216,16 +221,37 @@ export class ArchivedInstructorAccountsComponent {
         return;
       }
 
+      const emailResult = await this.accountEmail.sendUnarchiveNotification({
+        toEmail: account.email,
+        recipientName: account.fullName
+      });
+
       this.archivedAccounts.set(this.archivedAccounts().filter((item) => item.id !== account.id));
+
+      if (emailResult.sent) {
+        await Swal.fire({
+          title: 'Account restored',
+          html: `
+            <p class="archive-result-lead"><strong>${this.escapeHtml(account.fullName)}</strong> is active again.</p>
+            <p class="archive-result-email">Notification sent to<br><strong>${this.escapeHtml(account.email)}</strong></p>
+          `,
+          icon: 'success',
+          confirmButtonText: 'Done',
+          confirmButtonColor: '#16a34a',
+          customClass: { popup: 'swal-archive-result-popup' }
+        });
+        return;
+      }
+
       await Swal.fire({
         title: 'Account restored',
         html: `
           <p class="archive-result-lead"><strong>${this.escapeHtml(account.fullName)}</strong> is active again.</p>
-          <p class="archive-result-email">They can sign in with <strong>${this.escapeHtml(account.email)}</strong></p>
+          <p class="archive-result-warning">Email could not be sent:<br>${this.escapeHtml(emailResult.message)}</p>
         `,
-        icon: 'success',
-        confirmButtonText: 'Done',
-        confirmButtonColor: '#16a34a',
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#d97706',
         customClass: { popup: 'swal-archive-result-popup' }
       });
     } catch (error) {
@@ -237,13 +263,15 @@ export class ArchivedInstructorAccountsComponent {
   async unarchiveStudent(student: InstructorStudent): Promise<void> {
     const result = await Swal.fire({
       title: 'Unarchive student?',
-      html: `<p style="margin:0;color:#6b7280;font-size:13px;">
+      html: `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">
         <strong>${this.escapeHtml(student.name)}</strong> (${this.escapeHtml(student.email)})
-        will appear on the Students page again and can sign in if they have an account.</p>`,
+        will appear on the Students page again and can sign in if they have an account.
+        A short restoration notice will be emailed to their Gmail—no reason is required.</p>
+      <p style="margin:0;color:#6b7280;font-size:13px;">Re-assign classes manually only if enrollments were not restored.</p>`,
       icon: 'question',
       customClass: { popup: 'swal-delete-popup' },
       showCancelButton: true,
-      confirmButtonText: 'Unarchive',
+      confirmButtonText: 'Unarchive & notify',
       cancelButtonText: 'Cancel',
       confirmButtonColor: '#16a34a',
       reverseButtons: true
@@ -255,16 +283,41 @@ export class ArchivedInstructorAccountsComponent {
 
     try {
       await this.api.unarchiveStudentAccount(student.email);
+
+      const emailResult = await this.accountEmail.sendUnarchiveNotification(
+        {
+          toEmail: student.email,
+          recipientName: student.name
+        },
+        'student'
+      );
+
       this.archivedStudents.set(this.archivedStudents().filter((item) => item.id !== student.id));
+
+      if (emailResult.sent) {
+        await Swal.fire({
+          title: 'Student restored',
+          html: `
+            <p class="archive-result-lead"><strong>${this.escapeHtml(student.name)}</strong> is active again.</p>
+            <p class="archive-result-email">Notification sent to<br><strong>${this.escapeHtml(student.email)}</strong></p>
+          `,
+          icon: 'success',
+          confirmButtonText: 'Done',
+          confirmButtonColor: '#16a34a',
+          customClass: { popup: 'swal-archive-result-popup' }
+        });
+        return;
+      }
+
       await Swal.fire({
         title: 'Student restored',
         html: `
           <p class="archive-result-lead"><strong>${this.escapeHtml(student.name)}</strong> is active again.</p>
-          <p class="archive-result-email">They should appear on the Students page again. Re-assign classes manually only if enrollments were not restored.</p>
+          <p class="archive-result-warning">Email could not be sent:<br>${this.escapeHtml(emailResult.message)}</p>
         `,
-        icon: 'success',
-        confirmButtonText: 'Done',
-        confirmButtonColor: '#16a34a',
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#d97706',
         customClass: { popup: 'swal-archive-result-popup' }
       });
     } catch (error) {

@@ -120,7 +120,7 @@ Update `template_xdnxlzw` (or clone to a new template) so **nothing** is hardcod
 
 Stop using a fixed headline like “Your account has been archived.” The app already sends distinct `subject` and `message` per event.
 
-**Template params already sent** (`account-email.service.ts`): `to_email`, `to_name`, `subject`, `message`, `reason` (duplicate of message), `account_role`.
+**Template params already sent** (`account-email.service.ts`): `to_email`, `to_name`, `subject`, `message`, `account_role`, `time`. For archive/reject only: `reason`, `reason_section` (e.g. `Reason: …`). Unarchive, approval, and registration emails omit `reason` and send an empty `reason_section`—use `{{reason_section}}` in the template instead of a hardcoded `Reason: {{reason}}` line.
 
 ### 5.2 Optional: separate template IDs
 

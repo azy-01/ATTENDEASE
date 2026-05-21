@@ -10,28 +10,25 @@
   </div>
 
   <div class="header-right">
-    <button class="icon-btn" aria-label="Notifications" (click)="toggleNotificationMenu($event)">
+    <button
+      class="icon-btn notif-trigger"
+      type="button"
+      aria-label="Notifications"
+      [attr.aria-expanded]="notificationMenuOpen"
+      [class.active]="notificationMenuOpen"
+      (click)="toggleNotificationMenu($event)"
+    >
       <span class="material-icons">notifications</span>
-      <span class="notif-dot" *ngIf="unreadCount() > 0"></span>
+      <span class="notif-badge" *ngIf="unreadCount() > 0" aria-hidden="true">
+        {{ unreadCount() > 9 ? '9+' : unreadCount() }}
+      </span>
     </button>
     <button class="avatar-btn" aria-label="Account" (click)="toggleProfileMenu($event)">
       {{ userInitial }}
     </button>
 
     <div class="menu-panel notif-menu" *ngIf="notificationMenuOpen" (click)="$event.stopPropagation()">
-      <div class="menu-head">
-        <h3>Notifications</h3>
-        <button type="button" class="ghost-btn" (click)="markAllNotificationsAsRead($event)">Mark all read</button>
-      </div>
-      <div class="notif-list" *ngIf="notifications().length; else noNotifs">
-        <div class="notif-item" *ngFor="let notif of notifications()" [class.unread]="!notif.read">
-          <p class="notif-title">{{ notif.title }}</p>
-          <p class="notif-message">{{ notif.message }}</p>
-        </div>
-      </div>
-      <ng-template #noNotifs>
-        <p class="empty-text">No notifications yet.</p>
-      </ng-template>
+      <app-notification-panel [role]="notificationRole" />
     </div>
 
     <div class="menu-panel profile-menu" *ngIf="profileMenuOpen" (click)="$event.stopPropagation()">

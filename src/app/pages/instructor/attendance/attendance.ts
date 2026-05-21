@@ -19,6 +19,7 @@ import {
   sortSessionsNewestFirst,
   type HistoryDateFilter,
 } from '../../../core/data/instructor-session.utils';
+import { getTodayDateKey } from '../../../core/utils/date.utils';
 import { TakeAttendancePanelComponent } from './take-attendance-panel.component';
 
 @Component({
@@ -150,7 +151,7 @@ export class AttendanceComponent {
           manualAttendanceCode = await this.api.createUniqueManualAttendanceCode();
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayDateKey();
         const newSession: InstructorSession = {
           id: `session-${Date.now()}`,
           subject: this.selectedSubject,

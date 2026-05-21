@@ -51,6 +51,14 @@ export class NotificationService {
     this.persist(updated);
   }
 
+  markAsRead(id: string): void {
+    const updated = this.allItems().map((item) =>
+      item.id === id ? { ...item, read: true } : item
+    );
+    this.allItems.set(updated);
+    this.persist(updated);
+  }
+
   markAllAsRead(audience: NotificationRole): void {
     const updated = this.allItems().map((item) =>
       item.audience === audience ? { ...item, read: true } : item

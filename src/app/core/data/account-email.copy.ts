@@ -83,6 +83,28 @@ export function buildRejectionEmail(
 }
 
 /**
+ * Builds the account-restored email sent when an archived account is unarchived.
+ * No reason is required or included.
+ */
+export function buildUnarchiveEmail(
+  accountRole: AccountEmailRole,
+  appUrl?: string
+): AccountEmailContent {
+  const roleLabel = accountRole === 'instructor' ? 'instructor' : 'student';
+  const loginUrl = getAccountEmailAppUrl(appUrl);
+
+  return {
+    subject: `Your AttendEase ${roleLabel} account has been restored`,
+    message: [
+      `Your AttendEase ${roleLabel} account has been restored and is active again.`,
+      `You can sign in at ${loginUrl} with your Gmail address and password.`,
+      '',
+      'If you have questions, contact your administrator.'
+    ].join('\n')
+  };
+}
+
+/**
  * Builds the admin alert email (E5) for new pending registrations.
  */
 export function buildAdminRegistrationAlertEmail(payload: {
