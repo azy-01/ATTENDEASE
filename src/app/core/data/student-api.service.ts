@@ -1702,21 +1702,6 @@ export class StudentApiService {
     return setDoc(doc(this.db, 'instructorSessions', id), next, { merge: true }).then(() => next);
   }
 
-  async createUniqueManualAttendanceCode(length: number = 6): Promise<string> {
-    const sessions = await this.listAllInstructorSessions();
-    const usedCodes = new Set(
-      sessions
-        .map((session) => (session.manualAttendanceCode ?? '').trim().toUpperCase())
-        .filter((code) => Boolean(code))
-    );
-
-    let candidate = '';
-    do {
-      candidate = this.generateManualCode(length);
-    } while (usedCodes.has(candidate));
-    return candidate;
-  }
-
   async isManualAttendanceCodeUnique(code: string): Promise<boolean> {
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) {
@@ -1933,16 +1918,6 @@ export class StudentApiService {
         : 'INSTRUCTOR';
     const randomPart = Math.random().toString(36).slice(2, 10).toUpperCase();
     return `ATTENDEASE-${rolePrefix}-${id.toUpperCase()}-${randomPart}`;
-  }
-
-  private generateManualCode(length: number): string {
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const size = Math.max(4, Math.floor(length));
-    let value = '';
-    for (let index = 0; index < size; index += 1) {
-      value += alphabet[Math.floor(Math.random() * alphabet.length)];
-    }
-    return value;
   }
 
   private async syncStudentQrCodeByEmail(email: string, qrCodeValue: string): Promise<void> {

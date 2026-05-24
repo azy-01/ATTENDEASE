@@ -643,6 +643,30 @@ select.control-input {
     font-weight: 600;
     color: #374151;
   }
+
+  .camera-picker-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+
+    select {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .flip-camera-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    padding: 0 12px;
+
+    .material-icons {
+      font-size: 22px;
+    }
+  }
 }
 
 .scanner-preview {

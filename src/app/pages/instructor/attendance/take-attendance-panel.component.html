@@ -235,14 +235,27 @@
 
     <div class="camera-picker" *ngIf="availableCameras.length">
       <label for="instructorCameraSelect">Camera</label>
-      <select
-        id="instructorCameraSelect"
-        class="control-input"
-        [(ngModel)]="selectedCameraId"
-        (ngModelChange)="onCameraSelectionChange()"
-      >
-        <option *ngFor="let camera of availableCameras" [value]="camera.deviceId">{{ camera.label }}</option>
-      </select>
+      <div class="camera-picker-row">
+        <select
+          id="instructorCameraSelect"
+          class="control-input"
+          [(ngModel)]="selectedCameraId"
+          (ngModelChange)="onCameraSelectionChange()"
+        >
+          <option *ngFor="let camera of availableCameras" [value]="camera.deviceId">{{ camera.label }}</option>
+        </select>
+        <button
+          type="button"
+          class="btn-secondary flip-camera-btn"
+          *ngIf="availableCameras.length > 1"
+          (click)="flipCamera()"
+          [disabled]="isScannerStarting"
+          aria-label="Switch camera"
+          title="Switch camera"
+        >
+          <span class="material-icons" aria-hidden="true">cameraswitch</span>
+        </button>
+      </div>
     </div>
 
     <div class="scanner-loading" *ngIf="isScannerStarting">

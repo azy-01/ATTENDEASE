@@ -166,6 +166,15 @@ const ATTENDANCE_STATUSES: AttendanceStatus[] = ['Present', 'Late', 'Absent', 'E
       border-color: #374151;
       color: #e5e7eb;
     }
+    :host-context(body.dark-mode) .toolbar input[type='date']::-webkit-calendar-picker-indicator,
+    .dark-mode .toolbar input[type='date']::-webkit-calendar-picker-indicator {
+      width: 1.125rem;
+      height: 1.125rem;
+      opacity: 1;
+      cursor: pointer;
+      background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e2e8f0'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z'/%3E%3C/svg%3E");
+      color: transparent;
+    }
     :host-context(body.dark-mode) .date-field span,
     .dark-mode .date-field span { color: #94a3b8; }
     :host-context(body.dark-mode) th,
@@ -206,19 +215,21 @@ export class RecordsComponent implements OnInit {
     const fromKey = this.fromDate.trim();
     const toKey = this.toDate.trim();
 
-    return this.records().filter((record) => {
-      const matchesSearch = !term
-        || record.student.toLowerCase().includes(term)
-        || record.id.toLowerCase().includes(term);
+    return this.records()
+      .filter((record) => {
+        const matchesSearch = !term
+          || record.student.toLowerCase().includes(term)
+          || record.id.toLowerCase().includes(term);
 
-      const matchesStatus = !this.selectedStatus || record.status === this.selectedStatus;
+        const matchesStatus = !this.selectedStatus || record.status === this.selectedStatus;
 
-      const recordKey = this.toDateKey(record.date);
-      const matchesFrom = !fromKey || (recordKey !== '' && recordKey >= fromKey);
-      const matchesTo = !toKey || (recordKey !== '' && recordKey <= toKey);
+        const recordKey = this.toDateKey(record.date);
+        const matchesFrom = !fromKey || (recordKey !== '' && recordKey >= fromKey);
+        const matchesTo = !toKey || (recordKey !== '' && recordKey <= toKey);
 
-      return matchesSearch && matchesStatus && matchesFrom && matchesTo;
-    });
+        return matchesSearch && matchesStatus && matchesFrom && matchesTo;
+      })
+      .sort((first, second) => this.compareAttendanceNewestFirst(first, second));
   }
 
   ngOnInit(): void {
@@ -456,7 +467,7 @@ export class RecordsComponent implements OnInit {
         };
       })
       .filter((row): row is AttendanceRow => row !== null)
-      .sort((first, second) => this.toDateKey(second.date).localeCompare(this.toDateKey(first.date)));
+      .sort((first, second) => this.compareAttendanceNewestFirst(first, second));
   }
 
   private async resolveScope(): Promise<{
@@ -549,6 +560,48 @@ export class RecordsComponent implements OnInit {
       return status;
     }
     return 'Present';
+  }
+
+  private compareAttendanceNewestFirst(first: AttendanceRow, second: AttendanceRow): number {
+    return this.toAttendanceSortKey(second) - this.toAttendanceSortKey(first);
+  }
+
+  private toAttendanceSortKey(record: Pick<AttendanceRow, 'date' | 'timeIn'>): number {
+    const dateKey = this.toDateKey(record.date);
+    if (!dateKey) {
+      return 0;
+    }
+
+    const [year, month, day] = dateKey.split('-').map((part) => Number(part));
+    const minutesSinceMidnight = this.toTimeSortValue(record.timeIn);
+    const hours = minutesSinceMidnight >= 0 ? Math.floor(minutesSinceMidnight / 60) : 0;
+    const minutes = minutesSinceMidnight >= 0 ? minutesSinceMidnight % 60 : 0;
+    return new Date(year, month - 1, day, hours, minutes).getTime();
+  }
+
+  private toTimeSortValue(timeIn: string): number {
+    const trimmed = timeIn.trim();
+    if (!trimmed || trimmed === '--') {
+      return -1;
+    }
+
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) {
+      return 0;
+    }
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = match[3].toUpperCase();
+
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    }
+    if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+
+    return hours * 60 + minutes;
   }
 
   private toDateKey(value: string): string {

@@ -1,4 +1,7 @@
 <div class="reports-page">
+  <p class="load-hint" *ngIf="isLoading()">Loading reports…</p>
+  <p class="load-error" *ngIf="!isLoading() && loadError()">{{ loadError() }}</p>
+
   <div class="filters">
     <select [(ngModel)]="classFilter">
       <option>All Classes</option>
@@ -89,12 +92,10 @@
             <td>{{ record.date }}</td>
             <td>{{ record.timeIn }}</td>
             <td>
-              <span class="status-badge" [class.late]="record.status === 'Late'" [class.absent]="record.status === 'Absent'">
-                {{ record.status }}
-              </span>
+              <span class="status-badge" [ngClass]="statusClass(record.status)">{{ record.status }}</span>
             </td>
           </tr>
-          <tr *ngIf="!filteredRecords.length">
+          <tr *ngIf="!isLoading() && !filteredRecords.length">
             <td colspan="7" class="empty">No records found for the selected filters.</td>
           </tr>
         </tbody>

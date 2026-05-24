@@ -4,6 +4,18 @@
   gap: 14px;
 }
 
+.load-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.load-error {
+  margin: 0;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
 .filters,
 .panel,
 .stat-card {
@@ -183,6 +195,11 @@ th {
   color: #991b1b;
 }
 
+.status-badge.excused {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 .empty {
   text-align: center;
   color: #9ca3af;
@@ -215,6 +232,15 @@ th {
 
 :host-context(body.dark-mode) .date-field span {
   color: #94a3b8;
+}
+
+:host-context(body.dark-mode) .filters input[type='date']::-webkit-calendar-picker-indicator {
+  width: 1.125rem;
+  height: 1.125rem;
+  opacity: 1;
+  cursor: pointer;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e2e8f0'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z'/%3E%3C/svg%3E");
+  color: transparent;
 }
 
 :host-context(body.dark-mode) .stat-card span {

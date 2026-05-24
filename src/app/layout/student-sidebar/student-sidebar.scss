@@ -12,7 +12,8 @@
 
 .student-sidebar {
   width: 240px;
-  height: 100vh;
+  align-self: stretch;
+  min-height: 100%;
   background: #ffffff;
   border-right: 1px solid #e8eaf0;
   display: flex;

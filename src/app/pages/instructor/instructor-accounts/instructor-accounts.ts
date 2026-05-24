@@ -49,14 +49,6 @@ import { StudentApiService, type AuthAccount, type InstructorClass } from '../..
                 <td class="actions-cell">
                   <button
                     type="button"
-                    class="assign-btn"
-                    (click)="openClassAssignment(account)"
-                    [disabled]="account.approvalStatus !== 'approved'"
-                  >
-                    Set Classes
-                  </button>
-                  <button
-                    type="button"
                     class="archive-btn"
                     *ngIf="account.approvalStatus === 'approved'"
                     (click)="archiveAccount(account)"
@@ -76,31 +68,6 @@ import { StudentApiService, type AuthAccount, type InstructorClass } from '../..
           </table>
         </div>
       </section>
-
-      <div class="modal-backdrop" *ngIf="editingAccount()" (click)="closeClassAssignment()">
-        <div class="modal-card" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
-          <h4>Set Allowed Classes</h4>
-          <p class="section-sub">Select classes that {{ editingAccount()?.fullName }} can instruct.</p>
-          <div class="class-options" *ngIf="classes().length; else noClasses">
-            <label class="class-option" *ngFor="let classItem of classes()">
-              <input
-                type="checkbox"
-                [checked]="isClassSelected(classItem.id)"
-                (change)="toggleClassSelection(classItem.id, $event)"
-              />
-              <span>{{ classItem.name }} ({{ classItem.program }} - {{ classItem.yearLevel }})</span>
-            </label>
-          </div>
-          <ng-template #noClasses>
-            <p class="empty">No class records found. Add classes first.</p>
-          </ng-template>
-          <p class="save-message" *ngIf="saveMessage()">{{ saveMessage() }}</p>
-          <div class="modal-actions">
-            <button type="button" class="ghost-btn" (click)="closeClassAssignment()">Cancel</button>
-            <button type="button" class="assign-btn" (click)="saveClassAssignment()">Save</button>
-          </div>
-        </div>
-      </div>
     </div>
   `,
   styles: [`
@@ -131,77 +98,6 @@ import { StudentApiService, type AuthAccount, type InstructorClass } from '../..
       flex-wrap: wrap;
       gap: 6px;
     }
-    .assign-btn {
-      border: none;
-      border-radius: 8px;
-      height: 32px;
-      padding: 0 10px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 12px;
-      background: #4f46e5;
-      color: #fff;
-    }
-    .assign-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.5);
-      display: grid;
-      place-items: center;
-      padding: 16px;
-      z-index: 1200;
-    }
-    .modal-card {
-      width: min(520px, 100%);
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 16px;
-    }
-    h4 { margin: 0 0 6px; color: #111827; }
-    .class-options {
-      border: 1px solid #edf0f5;
-      border-radius: 8px;
-      padding: 8px 10px;
-      max-height: 220px;
-      overflow: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin: 10px 0;
-    }
-    .class-option {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #374151;
-      font-size: 13px;
-    }
-    .class-option input {
-      width: 15px;
-      height: 15px;
-      margin: 0;
-    }
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .ghost-btn {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 0 12px;
-      height: 32px;
-      background: #fff;
-      color: #374151;
-      cursor: pointer;
-    }
-    .save-message { margin: 0; color: #16a34a; font-size: 12px; }
     :host-context(body.dark-mode) .card { background: #111827; border-color: #1f2937; }
     :host-context(body.dark-mode) h3 { color: #e5e7eb; }
     :host-context(body.dark-mode) .section-sub,
@@ -217,31 +113,12 @@ import { StudentApiService, type AuthAccount, type InstructorClass } from '../..
       border-bottom-color: #1f2937;
     }
     :host-context(body.dark-mode) .text-muted { color: #94a3b8; }
-    :host-context(body.dark-mode) .modal-card {
-      background: #111827;
-      border-color: #374151;
-    }
-    :host-context(body.dark-mode) h4 { color: #e5e7eb; }
-    :host-context(body.dark-mode) .class-options {
-      border-color: #374151;
-      background: #0f172a;
-    }
-    :host-context(body.dark-mode) .class-option { color: #cbd5e1; }
-    :host-context(body.dark-mode) .ghost-btn {
-      border-color: #374151;
-      background: #0f172a;
-      color: #cbd5e1;
-    }
-    :host-context(body.dark-mode) .save-message { color: #86efac; }
   `],
 })
 export class InstructorAccountsComponent {
   private readonly authSessionStorageKey = 'attendease-auth-session';
   readonly accounts = signal<AuthAccount[]>([]);
   readonly classes = signal<InstructorClass[]>([]);
-  readonly editingAccount = signal<AuthAccount | null>(null);
-  readonly selectedClassIds = signal<string[]>([]);
-  readonly saveMessage = signal('');
   readonly activeAccounts = computed(() =>
     this.accounts().filter((account) => account.approvalStatus !== 'archived')
   );
@@ -364,51 +241,6 @@ export class InstructorAccountsComponent {
     }
     const classMap = new Map(this.classes().map((item) => [item.id, item.name]));
     return ids.map((id) => classMap.get(id)).filter((name): name is string => Boolean(name));
-  }
-
-  openClassAssignment(account: AuthAccount): void {
-    this.editingAccount.set(account);
-    this.selectedClassIds.set([...(account.allowedClassIds ?? [])]);
-    this.saveMessage.set('');
-  }
-
-  closeClassAssignment(): void {
-    this.editingAccount.set(null);
-    this.selectedClassIds.set([]);
-    this.saveMessage.set('');
-  }
-
-  isClassSelected(classId: string): boolean {
-    return this.selectedClassIds().includes(classId);
-  }
-
-  toggleClassSelection(classId: string, event: Event): void {
-    const checked = (event.target as HTMLInputElement).checked;
-    const next = new Set(this.selectedClassIds());
-    if (checked) {
-      next.add(classId);
-    } else {
-      next.delete(classId);
-    }
-    this.selectedClassIds.set([...next]);
-  }
-
-  async saveClassAssignment(): Promise<void> {
-    const account = this.editingAccount();
-    if (!account) {
-      return;
-    }
-    try {
-      await this.api.updateAuthAccount(account.id, { allowedClassIds: this.selectedClassIds() });
-      this.accounts.set(
-        this.accounts().map((item) =>
-          item.id === account.id ? { ...item, allowedClassIds: this.selectedClassIds() } : item
-        )
-      );
-      this.saveMessage.set('Allowed classes updated.');
-    } catch {
-      this.saveMessage.set('Unable to save class assignments.');
-    }
   }
 
   private async loadAccounts(): Promise<void> {

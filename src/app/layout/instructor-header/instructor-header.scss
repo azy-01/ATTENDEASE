@@ -2,14 +2,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 28px;
-    height: 72px;
+    padding: 0 24px;
+    height: 64px;
     background: #ffffff;
     border-bottom: 1px solid #e8eaf0;
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .header-left {
@@ -46,19 +46,17 @@
 }
 
 .header-title {
-    font-size: 1.35rem;
+    font-size: 1.2rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #111827;
     margin: 0;
     line-height: 1.2;
-    letter-spacing: -0.02em;
 }
 
 .header-subtitle {
-    font-size: 0.8rem;
-    color: #64748b;
-    margin: 2px 0 0;
-    font-weight: 500;
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin: 0;
 }
 
 .header-right {

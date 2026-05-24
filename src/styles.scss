@@ -30,6 +30,31 @@ body.dark-mode .student-content {
     color: #e2e8f0;
 }
 
+/* Light calendar glyph for native date inputs on dark backgrounds */
+$dark-mode-date-picker-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e2e8f0'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z'/%3E%3C/svg%3E");
+
+body.dark-mode input[type='date']::-webkit-calendar-picker-indicator,
+body.dark-mode input[type='datetime-local']::-webkit-calendar-picker-indicator,
+body.dark-mode input[type='time']::-webkit-calendar-picker-indicator,
+body.dark-mode input[type='month']::-webkit-calendar-picker-indicator,
+body.dark-mode input[type='week']::-webkit-calendar-picker-indicator {
+    width: 1.125rem;
+    height: 1.125rem;
+    margin-inline-start: 2px;
+    opacity: 1;
+    cursor: pointer;
+    background: center / contain no-repeat $dark-mode-date-picker-icon;
+    color: transparent;
+}
+
+body.dark-mode input[type='date']::-webkit-calendar-picker-indicator:hover,
+body.dark-mode input[type='datetime-local']::-webkit-calendar-picker-indicator:hover,
+body.dark-mode input[type='time']::-webkit-calendar-picker-indicator:hover,
+body.dark-mode input[type='month']::-webkit-calendar-picker-indicator:hover,
+body.dark-mode input[type='week']::-webkit-calendar-picker-indicator:hover {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z'/%3E%3C/svg%3E");
+}
+
 body.dark-mode .instructor-sidebar,
 body.dark-mode .student-sidebar {
     background: #111827;

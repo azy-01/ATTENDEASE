@@ -58,6 +58,7 @@ export interface StudentSignup {
   lastName: string;
   email: string;
   password: string;
+  confirmPassword: string;
 }
 
 @Component({
@@ -144,7 +145,7 @@ export class LandingComponent implements OnInit, OnDestroy {
   };
 
   studentForm: StudentSignup = {
-    firstName: '', lastName: '', email: '', password: ''
+    firstName: '', lastName: '', email: '', password: '', confirmPassword: ''
   };
 
   instructorVerificationFiles: File[] = [];
@@ -265,7 +266,7 @@ export class LandingComponent implements OnInit, OnDestroy {
     this.showLoginPassword = false;
     this.loginForm = { email: '', password: '' };
     this.instructorForm = { firstName: '', lastName: '', gmail: '', password: '', confirmPassword: '' };
-    this.studentForm = { firstName: '', lastName: '', email: '', password: '' };
+    this.studentForm = { firstName: '', lastName: '', email: '', password: '', confirmPassword: '' };
     this.instructorVerificationFiles = [];
     this.studentVerificationFiles = [];
   }
@@ -454,6 +455,8 @@ export class LandingComponent implements OnInit, OnDestroy {
     }
     if (!f.password) this.formErrors['password'] = 'Password is required.';
     else if (!this.isValidPassword(f.password)) this.formErrors['password'] = 'Password must be at least 8 characters.';
+    if (!f.confirmPassword) this.formErrors['confirmPassword'] = 'Please confirm your password.';
+    else if (f.password !== f.confirmPassword) this.formErrors['confirmPassword'] = 'Passwords do not match.';
     if (!this.validateVerificationUpload(this.studentVerificationFiles)) { /* keep verification error */ }
     if (Object.keys(this.formErrors).length) return;
 

@@ -84,19 +84,6 @@
     }
 }
 
-.manual-code-group {
-    margin-bottom: 14px;
-}
-
-.manual-code-row {
-    display: flex;
-    gap: 10px;
-
-    input {
-        flex: 1;
-    }
-}
-
 .btn-secondary {
     border: 1px solid #d1d5db;
     background: #fff;
@@ -113,10 +100,6 @@
         opacity: 0.55;
         cursor: not-allowed;
     }
-}
-
-.manual-code-group small {
-    color: #6b7280;
 }
 
 .error-message {
@@ -486,13 +469,6 @@
     margin: 0;
 }
 
-.session-code {
-    font-size: 0.8rem;
-    color: #4338ca;
-    margin: 0;
-    font-weight: 600;
-}
-
 // ── Badges ─────────────────────────────────────────────────
 .badge {
     padding: 4px 12px;
@@ -570,10 +546,6 @@
         grid-template-columns: 1fr;
     }
 
-    .manual-code-row {
-        flex-direction: column;
-    }
-
     .session-item {
         flex-direction: column;
         align-items: flex-start;
@@ -634,14 +606,6 @@
             background: #450a0a;
             border-color: #991b1b;
         }
-    }
-
-    .manual-code-group small {
-        color: #94a3b8;
-    }
-
-    .session-code {
-        color: #818cf8;
     }
 
     .session-item {

@@ -72,8 +72,10 @@ export class TakeAttendancePanelComponent implements OnChanges, OnDestroy {
   isScannerStarting = false;
   scannerError = '';
   scannerStatus = '';
-  availableCameras: Array<{ deviceId: string; label: string }> = [];
+  availableCameras: Array<{ deviceId: string; label: string; isRear: boolean }> = [];
   selectedCameraId = '';
+
+  private userPickedCamera = false;
 
   private readonly api = inject(StudentApiService);
   private readonly notifications = inject(NotificationService);
@@ -269,7 +271,8 @@ export class TakeAttendancePanelComponent implements OnChanges, OnDestroy {
     this.isScannerStarting = true;
 
     try {
-      await this.refreshAvailableCameras();
+      this.selectedCameraId = '';
+      this.userPickedCamera = false;
       await this.openSelectedCameraStream();
       this.isScannerOpen = true;
       this.setupBarcodeDetector();
@@ -300,6 +303,7 @@ export class TakeAttendancePanelComponent implements OnChanges, OnDestroy {
       return;
     }
 
+    this.userPickedCamera = true;
     this.scannerError = '';
     this.scannerStatus = 'Switching camera...';
     this.isScannerStarting = true;
@@ -314,6 +318,20 @@ export class TakeAttendancePanelComponent implements OnChanges, OnDestroy {
       this.isScannerStarting = false;
       this.cdr.markForCheck();
     }
+  }
+
+  async flipCamera(): Promise<void> {
+    if (this.availableCameras.length < 2 || !this.isScannerOpen || this.isScannerStarting) {
+      return;
+    }
+
+    const currentIndex = this.availableCameras.findIndex(
+      (camera) => camera.deviceId === this.selectedCameraId
+    );
+    const nextIndex =
+      currentIndex >= 0 ? (currentIndex + 1) % this.availableCameras.length : 0;
+    this.selectedCameraId = this.availableCameras[nextIndex].deviceId;
+    await this.onCameraSelectionChange();
   }
 
   stopQrScanner(): void {
@@ -704,12 +722,15 @@ export class TakeAttendancePanelComponent implements OnChanges, OnDestroy {
   private async refreshAvailableCameras(): Promise<void> {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter((device) => device.kind === 'videoinput');
-    this.availableCameras = cameras.map((device, index) => ({
-      deviceId: device.deviceId,
-      label: device.label || `Camera ${index + 1}`,
-    }));
+    this.availableCameras = cameras
+      .map((device, index) => ({
+        deviceId: device.deviceId,
+        label: this.formatCameraLabel(device.label, index),
+        isRear: this.isRearCameraLabel(device.label),
+      }))
+      .sort((first, second) => Number(second.isRear) - Number(first.isRear));
 
-    if (!this.availableCameras.length) {
+    if (!this.availableCameras.length && !this.scannerStream) {
       throw new Error('NO_CAMERA');
     }
 
@@ -717,22 +738,126 @@ export class TakeAttendancePanelComponent implements OnChanges, OnDestroy {
       (camera) => camera.deviceId === this.selectedCameraId
     );
     if (!selectedExists) {
-      this.selectedCameraId = this.availableCameras[0].deviceId;
+      this.selectedCameraId = this.pickDefaultCameraId();
     }
   }
 
   private async openSelectedCameraStream(): Promise<void> {
     this.stopCurrentCameraStream();
 
-    const constraints: MediaStreamConstraints = {
-      video: this.selectedCameraId ? { deviceId: { exact: this.selectedCameraId } } : true,
-      audio: false,
-    };
-    this.scannerStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-    if (!this.availableCameras.length) {
-      await this.refreshAvailableCameras();
+    const constraints = this.buildVideoConstraints();
+    try {
+      this.scannerStream = await navigator.mediaDevices.getUserMedia({
+        video: constraints,
+        audio: false,
+      });
+    } catch (primaryError) {
+      if (this.selectedCameraId) {
+        this.scannerStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+      } else {
+        throw primaryError;
+      }
     }
+
+    await this.refreshAvailableCameras();
+    await this.ensureRearCameraWhenAvailable();
+    this.syncSelectedCameraFromActiveTrack();
+  }
+
+  private buildVideoConstraints(): MediaTrackConstraints {
+    if (this.selectedCameraId) {
+      return {
+        deviceId: { ideal: this.selectedCameraId },
+        facingMode: { ideal: 'environment' },
+      };
+    }
+
+    return { facingMode: { ideal: 'environment' } };
+  }
+
+  private async ensureRearCameraWhenAvailable(): Promise<void> {
+    if (this.userPickedCamera) {
+      return;
+    }
+
+    const rearCamera = this.findRearCamera();
+    if (!rearCamera || rearCamera.deviceId === this.selectedCameraId) {
+      return;
+    }
+
+    const activeDeviceId = this.getActiveCameraDeviceId();
+    if (activeDeviceId === rearCamera.deviceId) {
+      this.selectedCameraId = rearCamera.deviceId;
+      return;
+    }
+
+    this.selectedCameraId = rearCamera.deviceId;
+    this.stopCurrentCameraStream();
+
+    try {
+      this.scannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { ideal: rearCamera.deviceId } },
+        audio: false,
+      });
+    } catch {
+      this.scannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+    }
+  }
+
+  private syncSelectedCameraFromActiveTrack(): void {
+    const activeDeviceId = this.getActiveCameraDeviceId();
+    if (!activeDeviceId) {
+      return;
+    }
+
+    const matchingCamera = this.availableCameras.find(
+      (camera) => camera.deviceId === activeDeviceId
+    );
+    if (matchingCamera) {
+      this.selectedCameraId = matchingCamera.deviceId;
+    }
+  }
+
+  private getActiveCameraDeviceId(): string {
+    const track = this.scannerStream?.getVideoTracks()[0];
+    return track?.getSettings().deviceId ?? '';
+  }
+
+  private pickDefaultCameraId(): string {
+    return this.findRearCamera()?.deviceId ?? this.availableCameras[0]?.deviceId ?? '';
+  }
+
+  private findRearCamera(): { deviceId: string; label: string } | undefined {
+    const labeledRear = this.availableCameras.find((camera) => camera.isRear);
+    if (labeledRear) {
+      return labeledRear;
+    }
+
+    if (this.availableCameras.length === 2) {
+      return this.availableCameras[1];
+    }
+
+    return undefined;
+  }
+
+  private formatCameraLabel(rawLabel: string, index: number): string {
+    const label = rawLabel.trim();
+    if (label) {
+      return label;
+    }
+
+    return `Camera ${index + 1}`;
+  }
+
+  private isRearCameraLabel(label: string): boolean {
+    const normalized = label.toLowerCase();
+    return /back|rear|environment|world|trás|arrière|wide/.test(normalized);
   }
 
   private compareSessionsByRecency(

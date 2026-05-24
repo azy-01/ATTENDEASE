@@ -47,9 +47,7 @@ export class AttendanceComponent {
 
   selectedSection: string = '';
   selectedSubject: string = '';
-  manualAttendanceCode: string = '';
   isStarting: boolean = false;
-  isGeneratingManualCode: boolean = false;
   endingSessionId: string | null = null;
   hidingSessionId: string | null = null;
   isClearingOldHistory: boolean = false;
@@ -138,19 +136,6 @@ export class AttendanceComponent {
           this.scopedClasses
         );
 
-        const instructorCode = this.manualAttendanceCode.trim().toUpperCase();
-        let manualAttendanceCode = instructorCode;
-
-        if (manualAttendanceCode) {
-          const isUnique = await this.api.isManualAttendanceCodeUnique(manualAttendanceCode);
-          if (!isUnique) {
-            this.startError = 'Manual attendance code already exists. Please use a different code.';
-            return;
-          }
-        } else {
-          manualAttendanceCode = await this.api.createUniqueManualAttendanceCode();
-        }
-
         const today = getTodayDateKey();
         const newSession: InstructorSession = {
           id: `session-${Date.now()}`,
@@ -158,7 +143,6 @@ export class AttendanceComponent {
           section: this.selectedSection,
           date: today,
           status: 'active',
-          manualAttendanceCode,
           startedAt: new Date().toISOString(),
           instructorAuthId: instructorAccount.id,
           classMode: matchedClass?.classMode,
@@ -186,29 +170,12 @@ export class AttendanceComponent {
 
         this.selectedSection = '';
         this.selectedSubject = '';
-        this.manualAttendanceCode = '';
       } catch {
-        this.startError = 'Unable to validate attendance code. Please try again.';
+        this.startError = 'Unable to start session. Please try again.';
       } finally {
         this.isStarting = false;
       }
     }, 1000);
-  }
-
-  async generateManualCode(): Promise<void> {
-    if (this.isGeneratingManualCode || this.isStarting) {
-      return;
-    }
-    this.isGeneratingManualCode = true;
-    this.startError = '';
-    this.startSuccess = '';
-    try {
-      this.manualAttendanceCode = await this.api.createUniqueManualAttendanceCode();
-    } catch {
-      this.startError = 'Unable to generate a unique attendance code right now.';
-    } finally {
-      this.isGeneratingManualCode = false;
-    }
   }
 
   async endSession(sessionId: string): Promise<void> {
@@ -462,13 +429,10 @@ export class AttendanceComponent {
   }
 
   private buildStartSuccessMessage(session: InstructorSession): string {
-    const code = session.manualAttendanceCode ?? '';
     const modeHint =
       session.classMode === FACE_TO_FACE_CLASS_MODE
         ? ' You can mark attendance via QR or manual entry.'
-        : session.classMode === 'Online Class'
-          ? ' Students can check in with the manual code.'
-          : '';
-    return `Session started. Manual code: ${code}.${modeHint}`;
+        : '';
+    return `Session started.${modeHint}`;
   }
 }

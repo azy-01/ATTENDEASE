@@ -51,10 +51,6 @@ import { StudentApiService } from '../../../core/data/student-api.service';
                 />
                 <span class="field-hint">Instructor and student accounts must use a real @gmail.com address for notifications.</span>
               </label>
-              <label *ngIf="newAccountRole() === 'student'">
-                <span>Section</span>
-                <input [ngModel]="newAccountSection()" (ngModelChange)="newAccountSection.set($event)" />
-              </label>
             </div>
           </div>
           <button type="button" class="save-btn" (click)="createManagedAccount()">Create Account</button>
@@ -109,7 +105,6 @@ export class InstructorsManagementComponent {
   readonly newAccountEmail = signal('');
   readonly newAccountPassword = signal('');
   readonly newAccountStudentId = signal('');
-  readonly newAccountSection = signal('');
 
   constructor(private readonly api: StudentApiService) {
     this.resolveSessionRole();
@@ -128,7 +123,6 @@ export class InstructorsManagementComponent {
     }
 
     const studentId = this.newAccountStudentId().trim();
-    const section = this.newAccountSection().trim();
     if (role === 'student' && !studentId) {
       this.message.set('Student ID is required for student accounts.');
       return;
@@ -141,14 +135,13 @@ export class InstructorsManagementComponent {
         lastName,
         email,
         password,
-        ...(role === 'student' ? { studentId, section } : {})
+        ...(role === 'student' ? { studentId } : {})
       });
       this.newAccountFirstName.set('');
       this.newAccountLastName.set('');
       this.newAccountEmail.set('');
       this.newAccountPassword.set('');
       this.newAccountStudentId.set('');
-      this.newAccountSection.set('');
       this.message.set(
         role === 'student'
           ? 'Student account created. They now appear in the Students list.'

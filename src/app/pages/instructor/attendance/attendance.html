@@ -7,7 +7,7 @@
     </h2>
 
     <p class="session-hint">
-      Face-to-face sessions support instructor QR scan and manual marking. Online sessions use student manual codes only.
+      Face-to-face sessions support instructor QR scan and manual marking.
     </p>
 
     <div class="form-row">
@@ -26,27 +26,6 @@
           <option *ngFor="let s of subjects" [value]="s">{{ s }}</option>
         </select>
       </div>
-    </div>
-
-    <div class="form-group manual-code-group">
-      <label>Manual Attendance Code (optional)</label>
-      <div class="manual-code-row">
-        <input
-          type="text"
-          [(ngModel)]="manualAttendanceCode"
-          placeholder="Set your own code or auto-generate"
-          [disabled]="isStarting || isGeneratingManualCode"
-        />
-        <button
-          type="button"
-          class="btn-secondary"
-          (click)="generateManualCode()"
-          [disabled]="isStarting || isGeneratingManualCode"
-        >
-          {{ isGeneratingManualCode ? 'Generating...' : 'Generate Unique Code' }}
-        </button>
-      </div>
-      <small>Students will use this code for manual attendance in the active session.</small>
     </div>
 
     <button class="btn-primary" (click)="startSession()" [disabled]="!selectedSection || !selectedSubject || isStarting">
@@ -198,7 +177,6 @@
   <div class="session-info">
     <p class="session-subject">{{ session.subject }}</p>
     <p class="session-meta">{{ session.section }} • {{ session.date }}</p>
-    <p class="session-code" *ngIf="session.manualAttendanceCode">Manual code: {{ session.manualAttendanceCode }}</p>
   </div>
   <div class="session-actions">
     <span class="badge mode-badge" [ngClass]="sessionModeClass(session)">
