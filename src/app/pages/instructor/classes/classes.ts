@@ -260,22 +260,13 @@ import {
                   <span>Students</span>
                   <span class="assignment-count">{{ assignedStudentCount }} selected</span>
                 </div>
-                <label>
-                  <span>Section <em class="required">*</em></span>
-                  <select [value]="selectedSection" (change)="onSectionSelectChange($event)">
-                    <option value="">Select section</option>
-                    <option *ngFor="let section of availableSections" [value]="section">{{ section }}</option>
-                  </select>
-                  <span class="field-hint">Choose a section to see and assign students.</span>
-                  <span class="field-error" *ngIf="fieldErrors['section']">{{ fieldErrors['section'] }}</span>
-                </label>
-                <ng-container *ngIf="selectedSection">
+                <ng-container *ngIf="students().length; else noStudentsAvailable">
                   <input
                     type="search"
                     class="search-input"
                     [value]="studentSearchQuery"
                     (input)="onStudentSearchChange($event)"
-                    placeholder="Search students in this section"
+                    placeholder="Search students by name, ID, or section"
                     aria-label="Search students"
                   />
                   <label class="student-option select-all-toggle" *ngIf="filteredStudents().length">
@@ -285,9 +276,9 @@ import {
                       [indeterminate]="isSomeVisibleStudentAssigned() && !areAllVisibleStudentsAssigned()"
                       (change)="toggleAllVisibleStudents($event)"
                     />
-                    <span>Select all in {{ selectedSection }} ({{ filteredStudents().length }})</span>
+                    <span>Select all ({{ filteredStudents().length }})</span>
                   </label>
-                  <div class="picker-list picker-list-tall" *ngIf="filteredStudents().length; else noSectionStudents">
+                  <div class="picker-list picker-list-tall" *ngIf="filteredStudents().length; else noMatchingStudents">
                     <label class="student-option" *ngFor="let student of filteredStudents()">
                       <input
                         type="checkbox"
@@ -297,12 +288,13 @@ import {
                       <span>{{ formatStudentDisplay(student) }}</span>
                     </label>
                   </div>
-                  <ng-template #noSectionStudents>
-                    <p class="empty-students">{{ students().length ? 'No students match your search in this section.' : 'No students available. Add students first.' }}</p>
+                  <ng-template #noMatchingStudents>
+                    <p class="empty-students">No students match your search.</p>
                   </ng-template>
                 </ng-container>
-                <p class="empty-students" *ngIf="!selectedSection && students().length">Select a section above to assign students.</p>
-                <p class="empty-students" *ngIf="!students().length">No students available. Add students first.</p>
+                <ng-template #noStudentsAvailable>
+                  <p class="empty-students">No students available. Add students first.</p>
+                </ng-template>
               </div>
             </div>
 
@@ -334,13 +326,13 @@ import {
                   <dl>
                     <div><dt>Instructors</dt><dd>{{ reviewInstructorNames }}</dd></div>
                     <div><dt>Subjects</dt><dd>{{ reviewSubjectList }}</dd></div>
-                    <div><dt>Students</dt><dd>{{ assignedStudentCount }} assigned{{ selectedSection ? ' from ' + selectedSection : '' }}</dd></div>
+                    <div><dt>Students</dt><dd>{{ assignedStudentCount }} assigned</dd></div>
                   </dl>
                 </section>
                 <section class="summary-card summary-card-wide" *ngIf="!isAdmin">
                   <h5>Students</h5>
                   <dl>
-                    <div><dt>Assigned</dt><dd>{{ assignedStudentCount }} student(s){{ selectedSection ? ' from ' + selectedSection : '' }}</dd></div>
+                    <div><dt>Assigned</dt><dd>{{ assignedStudentCount }} student(s)</dd></div>
                   </dl>
                 </section>
               </div>
@@ -1103,10 +1095,17 @@ export class ClassesComponent {
   }
 
   get programPresets(): string[] {
+    const excluded = new Set([
+      'SIA',
+      'Information Technology',
+      'Computer Science',
+      'BS Information Technology',
+    ].map((p) => p.trim().toLowerCase()));
+
     return distinctSorted([
       ...DEFAULT_PROGRAMS,
       ...this.classes().map((classItem) => classItem.program),
-    ]);
+    ]).filter((program) => !excluded.has(program.trim().toLowerCase()));
   }
 
   get yearLevelPresets(): string[] {
@@ -1309,6 +1308,7 @@ export class ClassesComponent {
     this.classDraft = {
       ...this.classDraft,
       [field]: target.value,
+      ...(field === 'name' ? { section: target.value } : {}),
     };
     this.clearFieldError(field);
   }
@@ -1508,19 +1508,14 @@ export class ClassesComponent {
   }
 
   filteredStudents(): InstructorStudent[] {
-    const normalizedSection = this.selectedSection.trim().toLowerCase();
-    if (!normalizedSection) {
-      return [];
-    }
     const query = this.studentSearchQuery.trim().toLowerCase();
-    let list = this.students().filter(
-      (student) => (student.section ?? '').trim().toLowerCase() === normalizedSection
-    );
+    let list = this.students();
     if (query) {
       list = list.filter(
         (student) =>
           student.name.toLowerCase().includes(query) ||
-          (student.studentId ?? '').toLowerCase().includes(query)
+          (student.studentId ?? '').toLowerCase().includes(query) ||
+          (student.section ?? '').toLowerCase().includes(query)
       );
     }
     return list;

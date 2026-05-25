@@ -1184,13 +1184,52 @@ export class StudentApiService {
     if (existingByStudentId) {
       throw new Error('Student account already exists for this Student ID.');
     }
+
+    const normalizedEmail = normalizeEmailAddress(payload.email);
+    const authId = id.startsWith('instr-std-') ? id.slice(10) : null;
+    if (authId) {
+      const existingAuth = await this.findAuthAccountByEmail('student', normalizedEmail);
+      if (existingAuth && existingAuth.id !== authId) {
+        throw new Error('An account already exists with this email address.');
+      }
+    }
+
     const next = {
       ...payload,
       id,
       studentId: normalizedStudentId,
-      email: normalizeEmailAddress(payload.email),
+      email: normalizedEmail,
     };
-    await setDoc(doc(this.db, 'instructorStudents', id), next, { merge: true });
+
+    const batch = writeBatch(this.db);
+    batch.set(doc(this.db, 'instructorStudents', id), next, { merge: true });
+
+    if (authId) {
+      batch.set(
+        doc(this.db, 'students', `std-${authId}`),
+        {
+          fullName: payload.name,
+          email: normalizedEmail,
+        },
+        { merge: true }
+      );
+
+      const nameParts = payload.name.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      batch.set(
+        doc(this.db, 'authAccounts', authId),
+        {
+          firstName,
+          lastName,
+          fullName: payload.name,
+          email: normalizedEmail,
+        },
+        { merge: true }
+      );
+    }
+
+    await batch.commit();
     return next;
   }
 

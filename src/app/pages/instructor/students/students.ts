@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import Swal from 'sweetalert2';
 import {
@@ -325,15 +325,15 @@ export class StudentsComponent {
     const rowMap = new Map<string, StudentDisplayRow>();
 
     for (const student of students) {
+      const studentSections = student.section?.trim() ? [student.section.trim()] : [];
       rowMap.set(student.id, {
         student,
-        sections: [],
+        sections: studentSections,
         subjects: [],
       });
     }
 
     for (const classItem of classes) {
-      const section = (classItem.section ?? '').trim() || classItem.name.trim();
       const subjects = this.getSubjectsForClass(classItem);
 
       for (const studentId of classItem.assignedStudentIds ?? []) {
@@ -347,9 +347,6 @@ export class StudentsComponent {
           continue;
         }
 
-        if (!existing.sections.some((value) => value.toLowerCase() === section.toLowerCase())) {
-          existing.sections.push(section);
-        }
         existing.subjects = [...new Set([...existing.subjects, ...subjects])].sort((a, b) =>
           a.localeCompare(b)
         );

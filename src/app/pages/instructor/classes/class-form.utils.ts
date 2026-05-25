@@ -30,9 +30,9 @@ export const DEFAULT_YEAR_LEVELS: readonly string[] = [
 ];
 
 export const DEFAULT_PROGRAMS: readonly string[] = [
-  'Information Technology',
-  'Computer Science',
-  'BS Information Technology',
+  'BS in Technology Communication Management',
+  'Bs in Computer Science',
+  'BS in Electro-Mechanical Technology',
 ];
 
 export const PROGRAM_OTHER_VALUE = '__other__';
